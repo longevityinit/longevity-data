@@ -179,3 +179,17 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Security
+.env
+
+# Data Folder Restrictions
+# 1. Ignore absolutely everything inside the data folder
+data/**
+# 2. Un-ignore directories so Git can traverse them
+!data/**/
+# 3. Explicitly un-ignore metadata and documentation files
+!data/**/*.yaml
+!data/**/*.yml
+!data/**/*.md
+!data/**/.gitkeep
