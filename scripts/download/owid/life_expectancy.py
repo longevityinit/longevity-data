@@ -1,0 +1,109 @@
+import sys
+import datetime
+import yaml
+import json
+import xxhash
+from pathlib import Path
+
+# Use path to determine script intent
+script_path = Path(__file__).resolve()
+DATASET_NAME = script_path.stem
+SOURCE = script_path.parent.name
+CHART_SLUG = DATASET_NAME.replace("_", "-") # Converts 'life_expectancy' to 'life-expectancy'
+ROOT_PATH = script_path.parents[3]
+DATA_PATH = Path(ROOT_PATH, "data")
+
+print(f"Downloading {DATASET_NAME} from {SOURCE}...")
+
+# Dynamically add the 'scripts/' directory to the Python path
+sys.path.append(str(Path(ROOT_PATH, "scripts")))
+
+from utils.owid import download_owid_chart_data
+from utils.storage import sync_to_storage
+
+def main():
+    today = datetime.date.today().isoformat()
+    
+    # Build local folder architecture
+    snapshot_dir = Path(DATA_PATH, "snapshots") / SOURCE / DATASET_NAME
+    version_dir = snapshot_dir / today
+
+    # If there's already a dataset-TODAY folder, skip
+    if version_dir.exists():
+        print(f"There's already a {version_dir.name} download! Skipping.")
+        sys.exit(0)
+    
+    csv_path = version_dir / f"{DATASET_NAME}.csv"
+    owid_json_path = version_dir / f"{DATASET_NAME}.owid.json"
+    pipeline_yaml_path = version_dir / f"{DATASET_NAME}.meta.yaml"
+    current_yaml_path = snapshot_dir / "current.yaml"    
+
+    # Check for previous ETag to only download changed data, and hash to compare downloads in case ETag updates falsely
+    previous_etag = None
+    previous_hash = None
+    if current_yaml_path.exists():
+        with open(current_yaml_path, "r", encoding="utf-8") as f:
+            current_data = yaml.safe_load(f) or {}
+            previous_etag = current_data.get("etag")
+            previous_hash = current_data.get("csv_hash")
+
+    # Download if changed
+    print(f"Starting snapshot sync for {SOURCE}/{DATASET_NAME}...")
+    result = download_owid_chart_data(CHART_SLUG, previous_etag)
+    
+    if result is None:
+        print(f"Server returned 304 Not Modified. {DATASET_NAME} is already up to date. Exiting.")
+        sys.exit(0)
+        
+    csv_bytes, raw_metadata, new_etag = result
+    version_dir.mkdir(parents=True, exist_ok=True)
+
+    # Calculate checksums of downloads
+    csv_hash = xxhash.xxh3_64_hexdigest(csv_bytes)
+    json_bytes = json.dumps(raw_metadata, ensure_ascii=False).encode('utf-8')
+    json_hash = xxhash.xxh3_64_hexdigest(json_bytes)
+
+    if csv_hash == previous_hash:
+        print(f"Downloaded and existing file hashes match ({csv_hash}). Data is identical. Exiting.")
+        sys.exit(0)
+
+    # Save
+    with open(csv_path, "wb") as f:
+        f.write(csv_bytes)
+        
+    with open(owid_json_path, "wb") as f:
+        f.write(json_bytes)
+        
+    pipeline_meta = {
+        "dataset": DATASET_NAME,
+        "source": SOURCE,
+        "download_date": today,
+        "original_url": f"https://ourworldindata.org/grapher/{CHART_SLUG}",
+        "etag": new_etag,
+        "checksums": {
+            "csv_xxh3_64": csv_hash,
+            "json_xxh3_64": json_hash
+        }
+    }
+    with open(pipeline_yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(pipeline_meta, f, sort_keys=False)
+        
+    with open(current_yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump({"version": today, "etag": new_etag}, f, sort_keys=False)
+        
+    print(f"Artefacts and metadata saved to {version_dir}")
+    
+    # Cloud sync
+    print("Initiating cloud sync...")
+    # Make paths relative to keep cloud tidy
+    upload_map = {
+        csv_path: csv_path.relative_to(DATA_PATH).as_posix(),
+        owid_json_path: owid_json_path.relative_to(DATA_PATH).as_posix(),
+        pipeline_yaml_path: pipeline_yaml_path.relative_to(DATA_PATH).as_posix(),
+        current_yaml_path: current_yaml_path.relative_to(DATA_PATH).as_posix(),
+    }
+    sync_to_storage(upload_map)
+    print(f"Snapshot pipeline complete for for {SOURCE}/{DATASET_NAME}!")
+
+if __name__ == "__main__":
+    main()
