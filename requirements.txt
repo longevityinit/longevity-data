@@ -1,0 +1,13 @@
+# --- Remote Storage & Environment ---
+boto3
+python-dotenv
+
+# --- Data Ingestion & Hashing ---
+requests
+xxhash
+
+# --- Configuration & Metadata ---
+pyyaml
+
+# --- Data Processing (Upcoming) ---
+pandas
