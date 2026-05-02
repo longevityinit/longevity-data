@@ -1,12 +1,9 @@
 import os
 import boto3
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load storage configuration
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-ENV_PATH = PROJECT_ROOT / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+load_dotenv(find_dotenv(raise_error_if_not_found=True))
 
 def get_storage_client():
     """Returns an authenticated boto3 client for the remote object store."""
