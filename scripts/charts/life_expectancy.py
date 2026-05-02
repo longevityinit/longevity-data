@@ -2,6 +2,7 @@ import sys
 import csv
 import html
 import json
+import re
 import yaml
 import shutil
 import requests
@@ -39,19 +40,27 @@ def ensure_vendor():
     print(f"Saved {VENDOR_FILE.stat().st_size // 1024} kB to {VENDOR_FILE}")
 
 
-def write_data_csv(src: Path, dst_dir: Path) -> Path:
+def public_column_name(name: str) -> str:
+    """Strip OWID's per-dataset disambiguation suffix (e.g. life_expectancy_0)."""
+    return re.sub(r"_\d+$", "", name)
+
+
+def write_data_csv(src: Path, dst_dir: Path, rename: dict[str, str]) -> Path:
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / "data.csv"
     rows = []
     with open(src, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            for k in row:
+            new_row = {}
+            for k, v in row.items():
+                key = rename.get(k, k)
                 if k not in ("entity", "code", "year"):
                     try:
-                        row[k] = f"{float(row[k]):.2f}" if row[k] else ""
+                        v = f"{float(v):.2f}" if v else ""
                     except ValueError:
                         pass
-            rows.append(row)
+                new_row[key] = v
+            rows.append(new_row)
     with open(dst, "w", newline="", encoding="utf-8") as f:
         if rows:
             w = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
@@ -60,16 +69,15 @@ def write_data_csv(src: Path, dst_dir: Path) -> Path:
     return dst
 
 
-def write_html(meta: dict, dst_dir: Path, vendor_rel: str) -> Path:
+def write_html(meta: dict, dst_dir: Path, vendor_rel: str, value_col: str) -> Path:
     template = TEMPLATE_FILE.read_text(encoding="utf-8")
-    col = meta["columns"][0]["name"]
     defaults = meta.get("default_selection") or ["World"]
     citation = meta["columns"][0].get("citation_short") or meta.get("citation", "")
     page = (template
             .replace("__CHART_TITLE__", html.escape(meta.get("title", "")))
             .replace("__CITATION__", html.escape(citation))
             .replace("__VENDOR_PATH__", vendor_rel)
-            .replace("__VALUE_COL__", col)
+            .replace("__VALUE_COL__", value_col)
             .replace("__DEFAULT_SELECTION__", json.dumps(defaults)))
     dst = dst_dir / "index.html"
     dst.write_text(page, encoding="utf-8")
@@ -90,16 +98,20 @@ def main():
 
     ensure_vendor()
 
+    src_col = meta["columns"][0]["name"]
+    public_col = public_column_name(src_col)
+    rename = {src_col: public_col}
+
     chart_dir = CHARTS_PATH / CHART_SLUG
-    write_data_csv(src_csv, chart_dir)
-    write_html(meta, chart_dir, f"../_vendor/{VENDOR_FILENAME}")
+    write_data_csv(src_csv, chart_dir, rename)
+    write_html(meta, chart_dir, f"../_vendor/{VENDOR_FILENAME}", public_col)
     print(f"Chart written to {chart_dir}")
 
     version = meta.get("snapshot_version", datetime.date.today().isoformat())
     ver_dir = chart_dir / version
     ver_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(chart_dir / "data.csv", ver_dir / "data.csv")
-    write_html(meta, ver_dir, f"../../_vendor/{VENDOR_FILENAME}")
+    write_html(meta, ver_dir, f"../../_vendor/{VENDOR_FILENAME}", public_col)
     print(f"Versioned copy at {ver_dir}")
 
     print("Uploading to cloud storage...")

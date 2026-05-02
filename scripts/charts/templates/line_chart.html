@@ -45,7 +45,8 @@
     const filter = params.get('location')?.split(',') ?? null;
     const defaults = __DEFAULT_SELECTION__;
 
-    const resp = await fetch(new URL('data.csv', import.meta.url));
+    const resp = await fetch('data.csv');
+    if (!resp.ok) throw new Error(`Failed to load data.csv: ${resp.status}`);
     const allRows = parseCSV(await resp.text());
 
     const visible = filter
