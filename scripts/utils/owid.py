@@ -49,10 +49,15 @@ def standardise_owid_chart_data(csv_bytes: bytes, metadata: dict):
     fixed = {"Entity": "entity", "Code": "code", "Year": "year"}
     indicator_cols = [c for c in df.columns if c not in fixed]
 
+    # Build a titleShort → metadata entry lookup for when CSV headers use
+    # the display name rather than the full technical key OWID uses internally.
+    meta_cols = metadata.get("columns", {})
+    by_title_short = {v.get("titleShort"): v for v in meta_cols.values() if v.get("titleShort")}
+
     rename = dict(fixed)
     columns_meta = []
     for col in indicator_cols:
-        col_meta = metadata.get("columns", {}).get(col, {})
+        col_meta = meta_cols.get(col) or by_title_short.get(col) or {}
         short_name = col_meta.get("shortName") or _to_snake_case(col)
         rename[col] = short_name
         columns_meta.append({
