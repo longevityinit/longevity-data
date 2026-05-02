@@ -93,9 +93,10 @@ def main():
     src_csv = std_dir / f"{DATASET_NAME}.csv"
     src_meta = std_dir / f"{DATASET_NAME}.meta.yaml"
 
-    if not src_csv.exists():
-        print(f"No standardised data at {src_csv}. Run the standardise script first.")
-        sys.exit(1)
+    for path in (src_csv, src_meta):
+        if not path.exists():
+            print(f"Missing: {path}\nRun scripts/standardise/owid/{DATASET_NAME}.py first.")
+            sys.exit(1)
 
     with open(src_meta, encoding="utf-8") as f:
         meta = yaml.safe_load(f)
