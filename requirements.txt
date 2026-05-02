@@ -1,13 +1,13 @@
 # --- Remote Storage & Environment ---
-boto3
-python-dotenv
+boto3~=1.38
+python-dotenv~=1.0
 
 # --- Data Ingestion & Hashing ---
-requests
-xxhash
+requests~=2.33
+xxhash~=3.5
 
 # --- Configuration & Metadata ---
-pyyaml
+PyYAML~=6.0
 
 # --- Data Processing (Upcoming) ---
-pandas
+pandas~=2.2

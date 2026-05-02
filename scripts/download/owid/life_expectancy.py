@@ -10,7 +10,13 @@ script_path = Path(__file__).resolve()
 DATASET_NAME = script_path.stem
 SOURCE = script_path.parent.name
 CHART_SLUG = DATASET_NAME.replace("_", "-") # Converts 'life_expectancy' to 'life-expectancy'
-ROOT_PATH = script_path.parents[3]
+def _find_project_root(start: Path) -> Path:
+    for p in [start, *start.parents]:
+        if (p / ".git").exists():
+            return p
+    raise RuntimeError(f"Could not locate project root from {start}")
+
+ROOT_PATH = _find_project_root(script_path)
 DATA_PATH = Path(ROOT_PATH, "data")
 
 print(f"Downloading {DATASET_NAME} from {SOURCE}...")
@@ -56,9 +62,8 @@ def main():
         sys.exit(0)
         
     csv_bytes, raw_metadata, new_etag = result
-    version_dir.mkdir(parents=True, exist_ok=True)
 
-    # Calculate checksums of downloads
+    # Calculate checksums before touching the filesystem
     csv_hash = xxhash.xxh3_64_hexdigest(csv_bytes)
     json_bytes = json.dumps(raw_metadata, ensure_ascii=False).encode('utf-8')
     json_hash = xxhash.xxh3_64_hexdigest(json_bytes)
@@ -66,6 +71,8 @@ def main():
     if csv_hash == previous_hash:
         print(f"Downloaded and existing file hashes match ({csv_hash}). Data is identical. Exiting.")
         sys.exit(0)
+
+    version_dir.mkdir(parents=True, exist_ok=True)
 
     # Save
     with open(csv_path, "wb") as f:
@@ -89,7 +96,7 @@ def main():
         yaml.dump(pipeline_meta, f, sort_keys=False)
         
     with open(current_yaml_path, "w", encoding="utf-8") as f:
-        yaml.dump({"version": today, "etag": new_etag}, f, sort_keys=False)
+        yaml.dump({"version": today, "etag": new_etag, "csv_hash": csv_hash}, f, sort_keys=False)
         
     print(f"Artefacts and metadata saved to {version_dir}")
     
