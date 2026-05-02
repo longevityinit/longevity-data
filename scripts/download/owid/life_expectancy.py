@@ -4,19 +4,14 @@ import yaml
 import json
 import xxhash
 from pathlib import Path
+from dotenv import find_dotenv
 
 # Use path to determine script intent
 script_path = Path(__file__).resolve()
 DATASET_NAME = script_path.stem
 SOURCE = script_path.parent.name
 CHART_SLUG = DATASET_NAME.replace("_", "-") # Converts 'life_expectancy' to 'life-expectancy'
-def _find_project_root(start: Path) -> Path:
-    for p in [start, *start.parents]:
-        if (p / ".git").exists():
-            return p
-    raise RuntimeError(f"Could not locate project root from {start}")
-
-ROOT_PATH = _find_project_root(script_path)
+ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
 DATA_PATH = Path(ROOT_PATH, "data")
 
 print(f"Downloading {DATASET_NAME} from {SOURCE}...")

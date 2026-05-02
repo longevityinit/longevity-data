@@ -1,18 +1,9 @@
 import os
 import boto3
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load storage configuration
-def _find_project_root(start: Path) -> Path:
-    for p in [start, *start.parents]:
-        if (p / ".git").exists():
-            return p
-    raise RuntimeError(f"Could not locate project root from {start}")
-
-PROJECT_ROOT = _find_project_root(Path(__file__).resolve())
-ENV_PATH = PROJECT_ROOT / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+load_dotenv(find_dotenv(raise_error_if_not_found=True))
 
 def get_storage_client():
     """Returns an authenticated boto3 client for the remote object store."""
