@@ -85,6 +85,7 @@ def standardise_owid_chart_data(csv_bytes: bytes, metadata: dict):
         "title": chart_meta.get("title"),
         "citation": chart_meta.get("citation"),
         "original_chart_url": chart_meta.get("originalChartUrl"),
+        "default_selection": chart_meta.get("selection", []),
         "columns": columns_meta,
     }
     return df, thin_meta
