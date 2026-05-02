@@ -31,7 +31,7 @@
         fields.push(field);
         return fields;
       }
-      const lines = text.trim().split('\n');
+      const lines = text.trim().split(/\r?\n/);
       const headers = splitLine(lines[0]);
       return lines.slice(1)
         .filter(l => l.trim())

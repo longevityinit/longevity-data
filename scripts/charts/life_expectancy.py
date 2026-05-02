@@ -54,7 +54,7 @@ def write_data_csv(src: Path, dst_dir: Path) -> Path:
             rows.append(row)
     with open(dst, "w", newline="", encoding="utf-8") as f:
         if rows:
-            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
             w.writeheader()
             w.writerows(rows)
     return dst
