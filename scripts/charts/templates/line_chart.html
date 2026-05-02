@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__CHART_TITLE__</title>
+  <script src="../lib/d3-7.9.0.min.js"></script>
+  <script src="../lib/plot-0.6.16.umd.min.js"></script>
+  <script src="../lib/longevityplot.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #fff; padding: 1rem; }
+    #chart svg { width: 100%; height: auto; }
+    #source { margin-top: 0.5rem; font-size: 0.75rem; color: #888; }
+    [aria-label="line"] path { transition: opacity 0.15s ease; }
+    .fade-others [aria-label="line"] path { opacity: 0.15; }
+    .fade-others [aria-label="line"] path.hovered { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="chart"></div>
+  <p id="source">Source: __CITATION__</p>
+  <script>
+  (async function () {
+    const params = new URLSearchParams(location.hash.slice(1));
+    const filter = params.get('location')?.split(',') ?? null;
+    const defaults = __DEFAULT_SELECTION__;
+    const allRows = await fetchCSV('__DATA_FILENAME__');
+    const data = filterAndCoerce(allRows, filter, defaults, '__VALUE_COL__');
+    lineChart('chart', data, { yLabel: 'Years' });
+  })();
+  </script>
+</body>
+</html>
