@@ -193,3 +193,8 @@ data/**
 !data/**/*.yml
 !data/**/*.md
 !data/**/.gitkeep
+
+# Generated chart output — rebuilt by pipeline, served from B2
+# charts/lib/ is source code; un-ignore it since the Python template above catches lib/
+!charts/lib/
+charts/life-expectancy/

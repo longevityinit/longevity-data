@@ -4,9 +4,7 @@ import html
 import json
 import re
 import yaml
-import shutil
 import requests
-import datetime
 from pathlib import Path
 from dotenv import find_dotenv
 
@@ -16,6 +14,7 @@ CHART_SLUG = DATASET_NAME.replace("_", "-")
 ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
 DATA_PATH = ROOT_PATH / "data"
 CHARTS_PATH = ROOT_PATH / "charts"
+LIB_DIR = CHARTS_PATH / "lib"
 TEMPLATE_FILE = script_path.parent / "templates" / "line_chart.html"
 
 print(f"Building chart for {CHART_SLUG}...")
@@ -25,29 +24,34 @@ from utils.storage import sync_to_storage
 
 PLOT_VERSION = "0.6.16"
 PLOT_URL = f"https://cdn.jsdelivr.net/npm/@observablehq/plot@{PLOT_VERSION}/dist/plot.umd.min.js"
-VENDOR_FILENAME = f"plot-{PLOT_VERSION}.umd.min.js"
-VENDOR_FILE = CHARTS_PATH / "_vendor" / VENDOR_FILENAME
+PLOT_FILENAME = f"plot-{PLOT_VERSION}.umd.min.js"
+
+D3_VERSION = "7.9.0"
+D3_URL = f"https://cdn.jsdelivr.net/npm/d3@{D3_VERSION}/dist/d3.min.js"
+D3_FILENAME = f"d3-{D3_VERSION}.min.js"
 
 
-def ensure_vendor():
-    if VENDOR_FILE.exists():
-        return
-    VENDOR_FILE.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading Observable Plot {PLOT_VERSION}...")
-    r = requests.get(PLOT_URL, timeout=60)
-    r.raise_for_status()
-    VENDOR_FILE.write_bytes(r.content)
-    print(f"Saved {VENDOR_FILE.stat().st_size // 1024} kB to {VENDOR_FILE}")
+def ensure_lib():
+    LIB_DIR.mkdir(parents=True, exist_ok=True)
+    for filename, url in [(D3_FILENAME, D3_URL), (PLOT_FILENAME, PLOT_URL)]:
+        dest = LIB_DIR / filename
+        if dest.exists():
+            continue
+        print(f"Downloading {filename}...")
+        r = requests.get(url, timeout=60)
+        r.raise_for_status()
+        dest.write_bytes(r.content)
+        print(f"Saved {dest.stat().st_size // 1024} kB to {dest}")
 
 
 def public_column_name(name: str) -> str:
-    """Strip OWID's per-dataset disambiguation suffix (e.g. life_expectancy_0)."""
+    """Strip OWID's per-dataset disambiguation suffix (e.g. life_expectancy_0 → life_expectancy)."""
     return re.sub(r"_\d+$", "", name)
 
 
-def write_data_csv(src: Path, dst_dir: Path, rename: dict[str, str]) -> Path:
+def write_data_csv(src: Path, dst_dir: Path, rename: dict[str, str], out_filename: str) -> Path:
     dst_dir.mkdir(parents=True, exist_ok=True)
-    dst = dst_dir / "data.csv"
+    dst = dst_dir / out_filename
     rows = []
     with open(src, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -69,16 +73,16 @@ def write_data_csv(src: Path, dst_dir: Path, rename: dict[str, str]) -> Path:
     return dst
 
 
-def write_html(meta: dict, dst_dir: Path, vendor_rel: str, value_col: str) -> Path:
+def write_html(meta: dict, dst_dir: Path, value_col: str, data_filename: str) -> Path:
     template = TEMPLATE_FILE.read_text(encoding="utf-8")
     defaults = meta.get("default_selection") or ["World"]
     citation = meta["columns"][0].get("citation_short") or meta.get("citation", "")
     page = (template
             .replace("__CHART_TITLE__", html.escape(meta.get("title", "")))
             .replace("__CITATION__", html.escape(citation))
-            .replace("__VENDOR_PATH__", vendor_rel)
             .replace("__VALUE_COL__", value_col)
-            .replace("__DEFAULT_SELECTION__", json.dumps(defaults)))
+            .replace("__DEFAULT_SELECTION__", json.dumps(defaults))
+            .replace("__DATA_FILENAME__", data_filename))
     dst = dst_dir / "index.html"
     dst.write_text(page, encoding="utf-8")
     return dst
@@ -96,30 +100,24 @@ def main():
     with open(src_meta, encoding="utf-8") as f:
         meta = yaml.safe_load(f)
 
-    ensure_vendor()
+    ensure_lib()
 
     src_col = meta["columns"][0]["name"]
     public_col = public_column_name(src_col)
-    rename = {src_col: public_col}
+    data_filename = f"{CHART_SLUG}_tli.csv"
 
     chart_dir = CHARTS_PATH / CHART_SLUG
-    write_data_csv(src_csv, chart_dir, rename)
-    write_html(meta, chart_dir, f"../_vendor/{VENDOR_FILENAME}", public_col)
+    write_data_csv(src_csv, chart_dir, {src_col: public_col}, data_filename)
+    write_html(meta, chart_dir, public_col, data_filename)
     print(f"Chart written to {chart_dir}")
-
-    version = meta.get("snapshot_version", datetime.date.today().isoformat())
-    ver_dir = chart_dir / version
-    ver_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(chart_dir / "data.csv", ver_dir / "data.csv")
-    write_html(meta, ver_dir, f"../../_vendor/{VENDOR_FILENAME}", public_col)
-    print(f"Versioned copy at {ver_dir}")
 
     print("Uploading to cloud storage...")
     sync_to_storage({
-        chart_dir / "data.csv": f"charts/{CHART_SLUG}/data.csv",
-        chart_dir / "index.html": f"charts/{CHART_SLUG}/index.html",
-        ver_dir / "data.csv": f"charts/{CHART_SLUG}/{version}/data.csv",
-        ver_dir / "index.html": f"charts/{CHART_SLUG}/{version}/index.html",
+        LIB_DIR / D3_FILENAME:          f"charts/lib/{D3_FILENAME}",
+        LIB_DIR / PLOT_FILENAME:         f"charts/lib/{PLOT_FILENAME}",
+        LIB_DIR / "longevityplot.js":    "charts/lib/longevityplot.js",
+        chart_dir / data_filename:       f"charts/{CHART_SLUG}/{data_filename}",
+        chart_dir / "index.html":        f"charts/{CHART_SLUG}/index.html",
     })
     print(f"Chart build complete for {CHART_SLUG}!")
 

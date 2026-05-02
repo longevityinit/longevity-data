@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>__CHART_TITLE__</title>
-  <script src="__VENDOR_PATH__"></script>
+  <script src="../lib/d3-7.9.0.min.js"></script>
+  <script src="../lib/plot-0.6.16.umd.min.js"></script>
+  <script src="../lib/longevityplot.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #fff; padding: 1rem; }
@@ -18,79 +20,15 @@
 <body>
   <div id="chart"></div>
   <p id="source">Source: __CITATION__</p>
-  <script type="module">
-    function parseCSV(text) {
-      function splitLine(line) {
-        const fields = [];
-        let field = '', quoted = false;
-        for (const ch of line) {
-          if (ch === '"') { quoted = !quoted; }
-          else if (ch === ',' && !quoted) { fields.push(field); field = ''; }
-          else { field += ch; }
-        }
-        fields.push(field);
-        return fields;
-      }
-      const lines = text.trim().split(/\r?\n/);
-      const headers = splitLine(lines[0]);
-      return lines.slice(1)
-        .filter(l => l.trim())
-        .map(l => {
-          const vals = splitLine(l);
-          return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
-        });
-    }
-
+  <script>
+  (async function () {
     const params = new URLSearchParams(location.hash.slice(1));
     const filter = params.get('location')?.split(',') ?? null;
     const defaults = __DEFAULT_SELECTION__;
-
-    const resp = await fetch('data.csv');
-    if (!resp.ok) throw new Error(`Failed to load data.csv: ${resp.status}`);
-    const allRows = parseCSV(await resp.text());
-
-    const visible = filter
-      ? allRows.filter(d => filter.includes(d.code) || filter.includes(d.entity))
-      : allRows.filter(d => defaults.includes(d.entity) || defaults.includes(d.code));
-
-    const data = visible
-      .filter(d => d.__VALUE_COL__ !== '' && d.__VALUE_COL__ != null)
-      .map(d => ({ entity: d.entity, code: d.code, year: +d.year, value: +d.__VALUE_COL__ }));
-
-    const chart = Plot.plot({
-      style: { fontSize: '13px' },
-      marginLeft: 48,
-      x: { label: null },
-      y: { label: 'Years', grid: true },
-      color: { legend: true },
-      marks: [
-        Plot.lineY(data, {
-          x: 'year', y: 'value', stroke: 'entity',
-          strokeWidth: 2, curve: 'monotone-x',
-        }),
-        Plot.tip(data, Plot.pointerX({
-          x: 'year', y: 'value',
-          title: d => `${d.entity}: ${d.value} years (${d.year})`,
-        })),
-      ],
-    });
-
-    document.getElementById('chart').append(chart);
-
-    const svg = chart.tagName === 'svg' ? chart : chart.querySelector('svg');
-    const paths = [...svg.querySelectorAll('[aria-label="line"] path')];
-
-    paths.forEach(path => {
-      path.style.pointerEvents = 'visibleStroke';
-      path.addEventListener('mouseenter', () => {
-        svg.classList.add('fade-others');
-        path.classList.add('hovered');
-      });
-      path.addEventListener('mouseleave', () => {
-        svg.classList.remove('fade-others');
-        path.classList.remove('hovered');
-      });
-    });
+    const allRows = await fetchCSV('__DATA_FILENAME__');
+    const data = filterAndCoerce(allRows, filter, defaults, '__VALUE_COL__');
+    lineChart('chart', data, { yLabel: 'Years' });
+  })();
   </script>
 </body>
 </html>
