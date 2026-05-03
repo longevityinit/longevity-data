@@ -15,13 +15,19 @@ print(f"Standardising {DATASET_NAME} from {SOURCE}...")
 sys.path.append(str(Path(ROOT_PATH, "scripts")))
 
 from utils.owid import standardise_owid_chart_data
-from utils.paths import snapshot_dir, standardised_dir, relative_to_data
-from utils.storage import sync_to_storage
+from utils.paths import DATA_PATH, snapshot_dir, standardised_dir
+from utils.storage import sync_to_storage, upload_map
 from schemas import CurrentPointer, StandardisedMeta, read_yaml, write_yaml
+from config import (
+    CURRENT_POINTER_FILENAME,
+    DATA_CSV_EXT,
+    META_YAML_EXT,
+    OWID_RAW_META_EXT,
+)
 
 def main():
     snap_dir = snapshot_dir(SOURCE, DATASET_NAME)
-    current_yaml_path = snap_dir / "current.yaml"
+    current_yaml_path = snap_dir / CURRENT_POINTER_FILENAME
 
     if not current_yaml_path.exists():
         print(f"No snapshot found at {current_yaml_path}. Run the download script first.")
@@ -31,8 +37,8 @@ def main():
     version = current.version
 
     version_dir = snap_dir / version
-    csv_path = version_dir / f"{DATASET_NAME}.csv"
-    json_path = version_dir / f"{DATASET_NAME}.owid.json"
+    csv_path = version_dir / f"{DATASET_NAME}{DATA_CSV_EXT}"
+    json_path = version_dir / f"{DATASET_NAME}{OWID_RAW_META_EXT}"
 
     print(f"Reading snapshot {version} from {version_dir}...")
     with open(csv_path, "rb") as f:
@@ -44,8 +50,8 @@ def main():
 
     out_dir = standardised_dir(SOURCE, DATASET_NAME)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_csv = out_dir / f"{DATASET_NAME}.csv"
-    out_meta_path = out_dir / f"{DATASET_NAME}.meta.yaml"
+    out_csv = out_dir / f"{DATASET_NAME}{DATA_CSV_EXT}"
+    out_meta_path = out_dir / f"{DATASET_NAME}{META_YAML_EXT}"
 
     df.to_csv(out_csv, index=False)
 
@@ -60,8 +66,7 @@ def main():
     print(f"Standardised {len(df):,} rows to {out_dir}")
 
     print("Initiating cloud sync...")
-    upload_map = {path: relative_to_data(path) for path in (out_csv, out_meta_path)}
-    sync_to_storage(upload_map)
+    sync_to_storage(upload_map(DATA_PATH, out_csv, out_meta_path))
     print(f"Standardise pipeline complete for {SOURCE}/{DATASET_NAME}!")
 
 if __name__ == "__main__":

@@ -18,9 +18,15 @@ print(f"Downloading {DATASET_NAME} from {SOURCE}...")
 sys.path.append(str(Path(ROOT_PATH, "scripts")))
 
 from utils.owid import download_owid_chart_data
-from utils.paths import snapshot_dir, relative_to_data
-from utils.storage import sync_to_storage
+from utils.paths import DATA_PATH, snapshot_dir
+from utils.storage import sync_to_storage, upload_map
 from schemas import Checksums, CurrentPointer, SnapshotMeta, read_yaml, write_yaml
+from config import (
+    CURRENT_POINTER_FILENAME,
+    DATA_CSV_EXT,
+    META_YAML_EXT,
+    OWID_RAW_META_EXT,
+)
 
 def main():
     today = datetime.date.today().isoformat()
@@ -34,10 +40,10 @@ def main():
         print(f"There's already a {version_dir.name} download! Skipping.")
         sys.exit(0)
 
-    csv_path = version_dir / f"{DATASET_NAME}.csv"
-    owid_json_path = version_dir / f"{DATASET_NAME}.owid.json"
-    pipeline_yaml_path = version_dir / f"{DATASET_NAME}.meta.yaml"
-    current_yaml_path = snap_dir / "current.yaml"
+    csv_path = version_dir / f"{DATASET_NAME}{DATA_CSV_EXT}"
+    owid_json_path = version_dir / f"{DATASET_NAME}{OWID_RAW_META_EXT}"
+    pipeline_yaml_path = version_dir / f"{DATASET_NAME}{META_YAML_EXT}"
+    current_yaml_path = snap_dir / CURRENT_POINTER_FILENAME
 
     # Check for previous ETag to only download changed data, and hash to compare downloads in case ETag updates falsely
     previous_etag = None
@@ -96,11 +102,10 @@ def main():
 
     # Cloud sync
     print("Initiating cloud sync...")
-    upload_map = {
-        path: relative_to_data(path)
-        for path in (csv_path, owid_json_path, pipeline_yaml_path, current_yaml_path)
-    }
-    sync_to_storage(upload_map)
+    sync_to_storage(upload_map(
+        DATA_PATH,
+        csv_path, owid_json_path, pipeline_yaml_path, current_yaml_path,
+    ))
     print(f"Snapshot pipeline complete for for {SOURCE}/{DATASET_NAME}!")
 
 if __name__ == "__main__":

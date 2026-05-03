@@ -26,6 +26,3 @@ def chart_dir(slug: str) -> Path:
     return CHARTS_PATH / slug
 
 
-def relative_to_data(path: Path) -> str:
-    """Storage key for a file under data/, suitable for the cloud bucket."""
-    return path.relative_to(DATA_PATH).as_posix()

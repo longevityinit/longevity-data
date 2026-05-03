@@ -17,9 +17,10 @@ TEMPLATE_FILE = script_path.parent / "templates" / "line_chart.html"
 print(f"Building chart for {CHART_SLUG}...")
 
 sys.path.append(str(ROOT_PATH / "scripts"))
-from utils.paths import CHART_LIB_DIR, chart_dir, standardised_dir
-from utils.storage import sync_to_storage
+from utils.paths import CHART_LIB_DIR, ROOT_PATH, chart_dir, standardised_dir
+from utils.storage import sync_to_storage, upload_map
 from schemas import StandardisedMeta, read_yaml
+from config import CHART_DATA_FILE_SUFFIX, CHART_INDEX_FILENAME, DATA_CSV_EXT, META_YAML_EXT
 
 PLOT_VERSION = "0.6.16"
 PLOT_URL = f"https://cdn.jsdelivr.net/npm/@observablehq/plot@{PLOT_VERSION}/dist/plot.umd.min.js"
@@ -82,15 +83,15 @@ def write_html(meta: StandardisedMeta, dst_dir: Path, value_col: str, data_filen
             .replace("__VALUE_COL__", value_col)
             .replace("__DEFAULT_SELECTION__", json.dumps(defaults))
             .replace("__DATA_FILENAME__", data_filename))
-    dst = dst_dir / "index.html"
+    dst = dst_dir / CHART_INDEX_FILENAME
     dst.write_text(page, encoding="utf-8")
     return dst
 
 
 def main():
     std_dir = standardised_dir(SOURCE, DATASET_NAME)
-    src_csv = std_dir / f"{DATASET_NAME}.csv"
-    src_meta_path = std_dir / f"{DATASET_NAME}.meta.yaml"
+    src_csv = std_dir / f"{DATASET_NAME}{DATA_CSV_EXT}"
+    src_meta_path = std_dir / f"{DATASET_NAME}{META_YAML_EXT}"
 
     for path in (src_csv, src_meta_path):
         if not path.exists():
@@ -103,21 +104,22 @@ def main():
 
     src_col = meta.columns[0].name
     public_col = public_column_name(src_col)
-    data_filename = f"{CHART_SLUG}_tli.csv"
+    data_filename = f"{CHART_SLUG}{CHART_DATA_FILE_SUFFIX}"
 
     out_chart_dir = chart_dir(CHART_SLUG)
-    write_data_csv(src_csv, out_chart_dir, {src_col: public_col}, data_filename)
-    write_html(meta, out_chart_dir, public_col, data_filename)
+    data_path = write_data_csv(src_csv, out_chart_dir, {src_col: public_col}, data_filename)
+    html_path = write_html(meta, out_chart_dir, public_col, data_filename)
     print(f"Chart written to {out_chart_dir}")
 
     print("Uploading to cloud storage...")
-    sync_to_storage({
-        CHART_LIB_DIR / D3_FILENAME:        f"charts/lib/{D3_FILENAME}",
-        CHART_LIB_DIR / PLOT_FILENAME:      f"charts/lib/{PLOT_FILENAME}",
-        CHART_LIB_DIR / "longevityplot.js": "charts/lib/longevityplot.js",
-        out_chart_dir / data_filename:      f"charts/{CHART_SLUG}/{data_filename}",
-        out_chart_dir / "index.html":       f"charts/{CHART_SLUG}/index.html",
-    })
+    sync_to_storage(upload_map(
+        ROOT_PATH,
+        CHART_LIB_DIR / D3_FILENAME,
+        CHART_LIB_DIR / PLOT_FILENAME,
+        CHART_LIB_DIR / "longevityplot.js",
+        data_path,
+        html_path,
+    ))
     print(f"Chart build complete for {CHART_SLUG}!")
 
 
