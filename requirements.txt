@@ -8,6 +8,7 @@ xxhash~=3.5
 
 # --- Configuration & Metadata ---
 PyYAML~=6.0
+pydantic~=2.9
 
 # --- Data Processing (Upcoming) ---
 pandas~=2.2
