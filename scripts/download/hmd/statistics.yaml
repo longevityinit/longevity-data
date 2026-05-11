@@ -1,0 +1,17 @@
+# Catalogue of Human Mortality Database statistics this pipeline knows how
+# to download. Each entry becomes a snapshot at
+# data/snapshots/hmd/<name>/<download-date>/.
+#
+# `url` is the canonical "By statistic" zip on mortality.org. Verify on
+# first run — HMD's URL scheme has changed once (June 2022 rebuild).
+#
+# To add a new statistic: append an entry here and add a matching parser
+# at scripts/standardise/hmd/<name>.py.
+
+statistics:
+  - name: fltper_1x1
+    description: >
+      Female period life tables, 1×1 (single-year age × single-year period).
+      Per-country text files inside the zip. Source for female period e0
+      used in Oeppen & Vaupel's best-practice life expectancy envelope.
+    url: https://www.mortality.org/File/GetDocument/hmd.v6/zip/by_statistic/fltper_1x1.zip
