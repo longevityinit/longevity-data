@@ -17,12 +17,16 @@ from utils.hmd import HMDSession
 from utils.storage import sync_to_storage
 
 
-def load_catalogue() -> list[dict]:
+def load_catalogue() -> tuple[dict, list[dict]]:
+    """Returns (site_config, statistics_list) from the YAML catalogue."""
     with open(CATALOGUE_PATH, "r", encoding="utf-8") as f:
-        return (yaml.safe_load(f) or {}).get("statistics", [])
+        data = yaml.safe_load(f) or {}
+    return data.get("site", {}), data.get("statistics", [])
 
 
-def snapshot_agreement(session: HMDSession, today: str) -> tuple[dict, list[Path]]:
+def snapshot_agreement(
+    session: HMDSession, today: str, agreement_url: str
+) -> tuple[dict, list[Path]]:
     """
     Captures the user-agreement page and stores a dated snapshot only when
     the content hash changes. Returns (reference_dict, paths_to_sync).
@@ -46,7 +50,7 @@ def snapshot_agreement(session: HMDSession, today: str) -> tuple[dict, list[Path
             previous_version = data.get("version")
 
     ref = {
-        "url": "https://www.mortality.org/Data/UserAgreement",
+        "url": agreement_url,
         "text_xxh3_64": text_hash,
     }
 
@@ -138,13 +142,24 @@ def download_statistic(
 
 def main():
     today = datetime.date.today().isoformat()
-    catalogue = load_catalogue()
+    site, catalogue = load_catalogue()
     if not catalogue:
         print(f"No statistics listed in {CATALOGUE_PATH}. Nothing to do.")
         return
+    required_site_keys = {"base_url", "login_path", "agreement_path"}
+    missing = required_site_keys - site.keys()
+    if missing:
+        raise RuntimeError(
+            f"{CATALOGUE_PATH} is missing site keys: {sorted(missing)}"
+        )
 
-    session = HMDSession()
-    agreement_ref, changed_paths = snapshot_agreement(session, today)
+    session = HMDSession(
+        base_url=site["base_url"],
+        login_path=site["login_path"],
+        agreement_path=site["agreement_path"],
+    )
+    agreement_url = site["base_url"].rstrip("/") + site["agreement_path"]
+    agreement_ref, changed_paths = snapshot_agreement(session, today, agreement_url)
 
     for entry in catalogue:
         changed_paths.extend(

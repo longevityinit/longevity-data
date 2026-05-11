@@ -1,12 +1,18 @@
-# Catalogue of Human Mortality Database statistics this pipeline knows how
-# to download. Each entry becomes a snapshot at
+# Source-level configuration and statistic catalogue for the Human
+# Mortality Database. Each entry under `statistics:` becomes a snapshot at
 # data/snapshots/hmd/<name>/<download-date>/.
 #
-# `url` is the canonical "By statistic" zip on mortality.org. Verify on
-# first run — HMD's URL scheme has changed once (June 2022 rebuild).
+# HMD's URL scheme has changed once (June 2022 rebuild) and is likely to
+# change again, so all site URLs live here rather than hard-coded in
+# Python. Verify on first run after any HMD redesign.
 #
-# To add a new statistic: append an entry here and add a matching parser
-# at scripts/standardise/hmd/<name>.py.
+# To add a new statistic: append an entry under `statistics:` and add a
+# matching parser at scripts/standardise/hmd/<name>.py.
+
+site:
+  base_url: https://www.mortality.org
+  login_path: /Account/Login
+  agreement_path: /Data/UserAgreement
 
 statistics:
   - name: fltper_1x1
