@@ -1,0 +1,76 @@
+dataset: all_cause_deaths
+source: ihme
+title: All cause deaths
+download_date: '2026-06-02'
+download_method: manual
+original_url: https://vizhub.healthdata.org/gbd-results/?params=gbd-api-2023-public/fc95851b0fe0e8263d6d1ef8e1ec3a31
+release: GBD 2023
+query:
+  measure:
+  - YLDs (Years Lived with Disability)
+  location:
+  - Global
+  - World Bank High Income
+  - World Bank Low Income
+  - World Bank Lower Middle Income
+  - World Bank Upper Middle Income
+  sex:
+  - Both
+  age:
+  - 1 to 4
+  - 10 to 14
+  - 15 to 19
+  - 20 to 24
+  - 25 to 29
+  - 30 to 34
+  - 35 to 39
+  - 40 to 44
+  - 45 to 49
+  - 5 to 9
+  - 50 to 54
+  - 55 to 59
+  - 60 to 64
+  - 65 to 69
+  - 70 to 74
+  - 75 to 79
+  - 80 to 84
+  - 85 to 89
+  - 90 to 94
+  - 95 plus
+  - <1 year
+  cause:
+  - All causes
+  rei:
+  - Blindness
+  - Complete hearing loss
+  - Hearing loss
+  - Heart failure
+  - Infertility
+  - Mild hearing loss
+  - Mild heart failure
+  - Mild vision loss
+  - Moderate hearing loss
+  - Moderate heart failure
+  - Moderate vision loss
+  - Moderately severe hearing loss
+  - Monocular vision loss
+  - Presbyopia
+  - Primary infertility
+  - Profound hearing loss
+  - Secondary infertility
+  - Severe hearing loss
+  - Severe heart failure
+  - Severe vision loss
+  - Vision loss
+  metric:
+  - Number
+  - Percent
+  - Rate
+  year:
+  - 2016
+checksums:
+  csv_xxh3_64: fceb5f2c2b99611d
+licence: IHME Free-of-Charge Non-commercial User Agreement
+citation: 'Global Burden of Disease Study 2016 (GBD 2016) Results. Seattle, United
+  States: Institute for Health Metrics and Evaluation (IHME), 2017. Available from
+  http://ghdx.healthdata.org/gbd-results-tool.'
