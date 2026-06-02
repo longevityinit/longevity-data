@@ -192,6 +192,9 @@ data/**
 !data/**/*.yaml
 !data/**/*.yml
 !data/**/*.md
+# Bundled licence/citation files from manual ingests (deliberate suffix only —
+# NOT a blanket *.txt un-ignore, which would leak data shipped as .txt)
+!data/**/*.licence.txt
 !data/**/.gitkeep
 
 # Generated chart output — rebuilt by pipeline, served from B2
