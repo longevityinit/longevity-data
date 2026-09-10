@@ -1,8 +1,8 @@
 # Implementation plan
 
 The first milestone is a reproducible, validated headline life-expectancy graph
-embedded in WordPress. This checklist tracks proposed work; no implementation
-items below are complete yet. See [architecture.md](architecture.md) for the
+embedded in WordPress. This checklist tracks completed setup and proposed
+implementation work. See [architecture.md](architecture.md) for the
 current system, proposed layers, and definition choices.
 
 ## 1. Agree on the chart and audit sources
@@ -21,10 +21,12 @@ values can be traced back to the source.
 
 ## 2. Make the pipeline reliable locally
 
-- [ ] Derive the repository root independently of `.env` discovery.
-- [ ] Separate download, build, and publish commands; add a local-only workflow.
-- [ ] Document Python setup and record reproducible dependency versions.
-- [ ] Add a way to restore and rebuild from an explicit stored snapshot.
+- [x] Derive the repository root independently of `.env` discovery.
+- [x] Add `--local` to all stages, with data and preview assets isolated in ignored `output/`.
+- [ ] Separate publication into an explicit command with upload recovery.
+- [x] Document Python setup and record resolved dependency versions for Python 3.10/Linux.
+- [ ] **Optional:** restore a selected snapshot from storage, verify its checksum,
+      and rebuild without fetching newer upstream data. Not required for initial local development.
 - [ ] Fix snapshot upload retries so local completion cannot suppress remote recovery.
 - [ ] Reject or explicitly align mismatched multipart CSV headers.
 - [ ] Track metadata-only upstream changes as well as CSV changes.

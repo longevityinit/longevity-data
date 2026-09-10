@@ -1,25 +1,25 @@
-import sys
+import argparse
 import csv
 import html
 import json
 import re
-import yaml
-import requests
+import shutil
+import sys
 from pathlib import Path
-from dotenv import find_dotenv
+
+import requests
+import yaml
 
 script_path = Path(__file__).resolve()
 DATASET_NAME = script_path.stem
 CHART_SLUG = DATASET_NAME.replace("_", "-")
-ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
-DATA_PATH = ROOT_PATH / "data"
-CHARTS_PATH = ROOT_PATH / "charts"
-LIB_DIR = CHARTS_PATH / "lib"
+ROOT_PATH = Path(__file__).resolve().parents[3]
 TEMPLATE_FILE = script_path.parent / "templates" / "line_chart.html"
 
-print(f"Building chart for {CHART_SLUG}...")
 
-sys.path.append(str(ROOT_PATH / "scripts"))
+sys.path.append(str(ROOT_PATH / "src/pipeline"))
+
+from utils.paths import get_output_root
 from utils.storage import sync_to_storage
 
 PLOT_VERSION = "0.6.16"
@@ -31,10 +31,10 @@ D3_URL = f"https://cdn.jsdelivr.net/npm/d3@{D3_VERSION}/dist/d3.min.js"
 D3_FILENAME = f"d3-{D3_VERSION}.min.js"
 
 
-def ensure_lib():
-    LIB_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_vendor_assets(vendor_dir: Path):
+    vendor_dir.mkdir(parents=True, exist_ok=True)
     for filename, url in [(D3_FILENAME, D3_URL), (PLOT_FILENAME, PLOT_URL)]:
-        dest = LIB_DIR / filename
+        dest = vendor_dir / filename
         if dest.exists():
             continue
         print(f"Downloading {filename}...")
@@ -89,37 +89,48 @@ def write_html(meta: dict, dst_dir: Path, value_col: str, data_filename: str) ->
 
 
 def main():
-    std_dir = DATA_PATH / "standardised" / "owid" / DATASET_NAME
+    parser = argparse.ArgumentParser(description="Run this pipeline stage.")
+    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
+    args = parser.parse_args()
+    print(f"Building chart for {CHART_SLUG}...")
+    output_root = get_output_root(ROOT_PATH, local=args.local)
+    data_path = output_root / "data"
+    charts_path = output_root / "charts"
+    lib_dir = charts_path / "lib"
+    vendor_dir = charts_path / "vendor"
+    std_dir = data_path / "standardised" / "owid" / DATASET_NAME
     src_csv = std_dir / f"{DATASET_NAME}.csv"
     src_meta = std_dir / f"{DATASET_NAME}.meta.yaml"
 
     for path in (src_csv, src_meta):
         if not path.exists():
-            print(f"Missing: {path}\nRun scripts/standardise/owid/{DATASET_NAME}.py first.")
+            mode = " --local" if args.local else ""
+            print(f"Missing: {path}\nRun python src/pipeline/standardise/owid/{DATASET_NAME}.py{mode} first.")
             sys.exit(1)
 
     with open(src_meta, encoding="utf-8") as f:
         meta = yaml.safe_load(f)
 
-    ensure_lib()
+    ensure_vendor_assets(vendor_dir)
+    lib_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT_PATH / "src/charts/longevityplot.js", lib_dir / "longevityplot.js")
 
     src_col = meta["columns"][0]["name"]
     public_col = public_column_name(src_col)
     data_filename = f"{CHART_SLUG}_tli.csv"
 
-    chart_dir = CHARTS_PATH / CHART_SLUG
+    chart_dir = charts_path / CHART_SLUG
     write_data_csv(src_csv, chart_dir, {src_col: public_col}, data_filename)
     write_html(meta, chart_dir, public_col, data_filename)
     print(f"Chart written to {chart_dir}")
 
-    print("Uploading to cloud storage...")
     sync_to_storage({
-        LIB_DIR / D3_FILENAME:          f"charts/lib/{D3_FILENAME}",
-        LIB_DIR / PLOT_FILENAME:         f"charts/lib/{PLOT_FILENAME}",
-        LIB_DIR / "longevityplot.js":    "charts/lib/longevityplot.js",
+        vendor_dir / D3_FILENAME:       f"charts/vendor/{D3_FILENAME}",
+        vendor_dir / PLOT_FILENAME:      f"charts/vendor/{PLOT_FILENAME}",
+        lib_dir / "longevityplot.js":    "charts/lib/longevityplot.js",
         chart_dir / data_filename:       f"charts/{CHART_SLUG}/{data_filename}",
         chart_dir / "index.html":        f"charts/{CHART_SLUG}/index.html",
-    })
+    }, local=args.local)
     print(f"Chart build complete for {CHART_SLUG}!")
 
 

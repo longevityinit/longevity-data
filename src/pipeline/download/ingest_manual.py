@@ -15,9 +15,10 @@ read straight out of the export, so the operator types as little as possible.
 The original zip is read in memory and never copied into the repo; only the
 canonical extracted artefacts are written. The CSV goes to the snapshot folder
 (gitignored) and B2; the licence and metadata YAML are version-controlled.
+With --local, all artifacts stay in ignored output/ and nothing is uploaded.
 
 Usage:
-    python scripts/download/ingest_manual.py \
+    python src/pipeline/download/ingest_manual.py \
         --source ihme --dataset all_cause_deaths \
         --zip ~/Downloads/IHME-GBD_2023_DATA-xxxxx.zip \
         --url "https://vizhub.healthdata.org/gbd-results/?params=gbd-api-2023-public/<hash>"
@@ -25,22 +26,23 @@ Usage:
 Optional overrides: --release, --title, --citation, --value-columns, --date.
 """
 
+import argparse
+import datetime
 import io
 import sys
 import zipfile
-import argparse
-import datetime
-import yaml
-import xxhash
-import pandas as pd
 from pathlib import Path
-from dotenv import find_dotenv
 
-ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
-DATA_PATH = Path(ROOT_PATH, "data")
+import pandas as pd
+import xxhash
+import yaml
 
-# Dynamically add the 'scripts/' directory to the Python path
-sys.path.append(str(Path(ROOT_PATH, "scripts")))
+ROOT_PATH = Path(__file__).resolve().parents[3]
+
+# Dynamically add the 'src/pipeline/' directory to the Python path
+sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
+
+from utils.paths import get_output_root
 
 # GBD's three estimate columns: the point estimate plus its 95% uncertainty
 # interval. Override with --value-columns for other sources.
@@ -59,6 +61,7 @@ def parse_args():
     p.add_argument("--citation", help="Citation string. Read from the bundled licence file or templated if omitted.")
     p.add_argument("--value-columns", help="Comma-separated estimate columns (default: val,upper,lower).")
     p.add_argument("--date", help="Snapshot date YYYY-MM-DD (default: today).")
+    p.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
     return p.parse_args()
 
 
@@ -180,6 +183,7 @@ def _resolve_citation(override, licence_text, release, year, url):
 
 def main():
     args = parse_args()
+    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
     archive_path = Path(args.archive).expanduser().resolve()
     if not archive_path.exists():
         sys.exit(f"File not found: {archive_path}")
@@ -190,7 +194,7 @@ def main():
         if args.value_columns else DEFAULT_VALUE_COLUMNS
     )
 
-    snapshot_dir = Path(DATA_PATH, "snapshots") / args.source / args.dataset
+    snapshot_dir = Path(data_path, "snapshots") / args.source / args.dataset
     version_dir = snapshot_dir / today
     current_yaml_path = snapshot_dir / "current.yaml"
 
@@ -241,26 +245,25 @@ def main():
         yaml.dump(meta, f, sort_keys=False, allow_unicode=True)
 
     upload_map = {
-        csv_path: csv_path.relative_to(DATA_PATH).as_posix(),
-        meta_path: meta_path.relative_to(DATA_PATH).as_posix(),
+        csv_path: csv_path.relative_to(data_path).as_posix(),
+        meta_path: meta_path.relative_to(data_path).as_posix(),
     }
 
     if licence_text is not None:
         with open(licence_path, "w", encoding="utf-8") as f:
             f.write(licence_text)
-        upload_map[licence_path] = licence_path.relative_to(DATA_PATH).as_posix()
+        upload_map[licence_path] = licence_path.relative_to(data_path).as_posix()
     else:
         print("Warning: no licence/citation .txt found in the archive — none saved.")
 
     with open(current_yaml_path, "w", encoding="utf-8") as f:
         yaml.dump({"version": today, "csv_hash": csv_hash}, f, sort_keys=False)
-    upload_map[current_yaml_path] = current_yaml_path.relative_to(DATA_PATH).as_posix()
+    upload_map[current_yaml_path] = current_yaml_path.relative_to(data_path).as_posix()
 
     print(f"Ingested {len(df):,} rows to {version_dir}")
 
-    print("Initiating cloud sync...")
     from utils.storage import sync_to_storage
-    sync_to_storage(upload_map)
+    sync_to_storage(upload_map, local=args.local)
 
     print(f"Manual ingest complete for {args.source}/{args.dataset}!")
     print(f"You can now delete the source download: {archive_path}")

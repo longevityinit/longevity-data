@@ -11,19 +11,20 @@ D3 and Observable Plot for presentation.
 
 | Stage | Current implementation |
 | --- | --- |
-| Download | `scripts/download/owid/life_expectancy.py` fetches an OWID chart's CSV and metadata, using ETags and CSV hashes to skip unchanged data. |
-| Manual ingest | `scripts/download/ingest_manual.py` imports CSV or ZIP exports and records dimensions, checksums, and provenance. |
+| Download | `src/pipeline/download/owid/life_expectancy.py` fetches an OWID chart's CSV and metadata, using ETags and CSV hashes to skip unchanged data. |
+| Manual ingest | `src/pipeline/download/ingest_manual.py` imports CSV or ZIP exports and records dimensions, checksums, and provenance. |
 | Snapshot | `data/snapshots/<source>/<dataset>/<date>/` holds source artifacts; `current.yaml` identifies the current version. |
-| Standardise | `scripts/standardise/owid/life_expectancy.py` normalizes column names, checks duplicate entity/year rows, and writes CSV and selected metadata. |
-| Chart | `scripts/charts/life_expectancy.py` creates HTML and a public CSV using a template and `charts/lib/longevityplot.js`. |
-| Publish | Each pipeline script uploads its outputs through `scripts/utils/storage.py` to S3-compatible storage configured with `B2_*` variables. |
+| Standardise | `src/pipeline/standardise/owid/life_expectancy.py` normalizes column names, checks duplicate entity/year rows, and writes CSV and selected metadata. |
+| Chart | `src/pipeline/charts/life_expectancy.py` creates HTML and a public CSV using a template and `src/charts/longevityplot.js`. |
+| Publish | Each pipeline script uploads its outputs through `src/pipeline/utils/storage.py` to S3-compatible storage configured with `B2_*` variables. |
 
 Raw data is gitignored; metadata and selected licence files are tracked. Source
 CSVs are not restored automatically on a fresh clone. Standardised outputs and
 generated charts currently overwrite their previous versions.
 
-Scripts locate the repository through a required `.env` file. Build and upload
-are coupled: there is no local-only build mode. Snapshot importers update local
+Scripts locate the repository from their own paths. All stages accept `--local`
+to write data and preview assets under ignored `output/` without `.env`,
+credentials, or uploads. Omitting it retains the original paths and automatic uploads. Snapshot importers update local
 state before upload, so a failed upload can leave a snapshot that reruns skip.
 
 ## Proposed flow

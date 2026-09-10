@@ -1,43 +1,50 @@
-import sys
+import argparse
 import datetime
-import yaml
 import json
-import xxhash
+import sys
 from pathlib import Path
-from dotenv import find_dotenv
+
+import xxhash
+import yaml
 
 # Use path to determine script intent
 script_path = Path(__file__).resolve()
 DATASET_NAME = script_path.stem
 SOURCE = script_path.parent.name
 CHART_SLUG = DATASET_NAME.replace("_", "-") # Converts 'life_expectancy' to 'life-expectancy'
-ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
-DATA_PATH = Path(ROOT_PATH, "data")
+ROOT_PATH = Path(__file__).resolve().parents[4]
 
-print(f"Downloading {DATASET_NAME} from {SOURCE}...")
 
-# Dynamically add the 'scripts/' directory to the Python path
-sys.path.append(str(Path(ROOT_PATH, "scripts")))
+# Dynamically add the 'src/pipeline/' directory to the Python path
+sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
+
+from utils.paths import get_output_root
 
 from utils.owid import download_owid_chart_data
 from utils.storage import sync_to_storage
 
+
 def main():
+    parser = argparse.ArgumentParser(description="Run this pipeline stage.")
+    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
+    args = parser.parse_args()
+    print(f"Downloading {DATASET_NAME} from {SOURCE}...")
+    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
     today = datetime.date.today().isoformat()
-    
+
     # Build local folder architecture
-    snapshot_dir = Path(DATA_PATH, "snapshots") / SOURCE / DATASET_NAME
+    snapshot_dir = Path(data_path, "snapshots") / SOURCE / DATASET_NAME
     version_dir = snapshot_dir / today
 
     # If there's already a dataset-TODAY folder, skip
     if version_dir.exists():
         print(f"There's already a {version_dir.name} download! Skipping.")
         sys.exit(0)
-    
+
     csv_path = version_dir / f"{DATASET_NAME}.csv"
     owid_json_path = version_dir / f"{DATASET_NAME}.owid.json"
     pipeline_yaml_path = version_dir / f"{DATASET_NAME}.meta.yaml"
-    current_yaml_path = snapshot_dir / "current.yaml"    
+    current_yaml_path = snapshot_dir / "current.yaml"
 
     # Check for previous ETag to only download changed data, and hash to compare downloads in case ETag updates falsely
     previous_etag = None
@@ -51,11 +58,11 @@ def main():
     # Download if changed
     print(f"Starting snapshot sync for {SOURCE}/{DATASET_NAME}...")
     result = download_owid_chart_data(CHART_SLUG, previous_etag)
-    
+
     if result is None:
         print(f"Server returned 304 Not Modified. {DATASET_NAME} is already up to date. Exiting.")
         sys.exit(0)
-        
+
     csv_bytes, raw_metadata, new_etag = result
 
     # Calculate checksums before touching the filesystem
@@ -72,10 +79,10 @@ def main():
     # Save
     with open(csv_path, "wb") as f:
         f.write(csv_bytes)
-        
+
     with open(owid_json_path, "wb") as f:
         f.write(json_bytes)
-        
+
     pipeline_meta = {
         "dataset": DATASET_NAME,
         "source": SOURCE,
@@ -89,23 +96,23 @@ def main():
     }
     with open(pipeline_yaml_path, "w", encoding="utf-8") as f:
         yaml.dump(pipeline_meta, f, sort_keys=False)
-        
+
     with open(current_yaml_path, "w", encoding="utf-8") as f:
         yaml.dump({"version": today, "etag": new_etag, "csv_hash": csv_hash}, f, sort_keys=False)
-        
+
     print(f"Artefacts and metadata saved to {version_dir}")
-    
+
     # Cloud sync
-    print("Initiating cloud sync...")
     # Make paths relative to keep cloud tidy
     upload_map = {
-        csv_path: csv_path.relative_to(DATA_PATH).as_posix(),
-        owid_json_path: owid_json_path.relative_to(DATA_PATH).as_posix(),
-        pipeline_yaml_path: pipeline_yaml_path.relative_to(DATA_PATH).as_posix(),
-        current_yaml_path: current_yaml_path.relative_to(DATA_PATH).as_posix(),
+        csv_path: csv_path.relative_to(data_path).as_posix(),
+        owid_json_path: owid_json_path.relative_to(data_path).as_posix(),
+        pipeline_yaml_path: pipeline_yaml_path.relative_to(data_path).as_posix(),
+        current_yaml_path: current_yaml_path.relative_to(data_path).as_posix(),
     }
-    sync_to_storage(upload_map)
-    print(f"Snapshot pipeline complete for for {SOURCE}/{DATASET_NAME}!")
+    sync_to_storage(upload_map, local=args.local)
+    print(f"Snapshot pipeline complete for {SOURCE}/{DATASET_NAME}!")
+
 
 if __name__ == "__main__":
     main()
