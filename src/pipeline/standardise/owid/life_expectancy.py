@@ -1,30 +1,39 @@
-import sys
+import argparse
 import json
-import yaml
+import sys
 from pathlib import Path
-from dotenv import find_dotenv
+
+import yaml
 
 # Use path to determine script intent
 script_path = Path(__file__).resolve()
 DATASET_NAME = script_path.stem
 SOURCE = script_path.parent.name
-ROOT_PATH = Path(find_dotenv(raise_error_if_not_found=True)).parent
-DATA_PATH = Path(ROOT_PATH, "data")
+ROOT_PATH = Path(__file__).resolve().parents[4]
 
-print(f"Standardising {DATASET_NAME} from {SOURCE}...")
 
-# Dynamically add the 'scripts/' directory to the Python path
-sys.path.append(str(Path(ROOT_PATH, "scripts")))
+# Dynamically add the 'src/pipeline/' directory to the Python path
+sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
+
+from utils.paths import get_output_root
 
 from utils.owid import standardise_owid_chart_data
 from utils.storage import sync_to_storage
 
+
 def main():
-    snapshot_dir = Path(DATA_PATH, "snapshots") / SOURCE / DATASET_NAME
+    parser = argparse.ArgumentParser(description="Run this pipeline stage.")
+    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
+    args = parser.parse_args()
+    print(f"Standardising {DATASET_NAME} from {SOURCE}...")
+    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
+    snapshot_dir = Path(data_path, "snapshots") / SOURCE / DATASET_NAME
     current_yaml_path = snapshot_dir / "current.yaml"
 
     if not current_yaml_path.exists():
-        print(f"No snapshot found at {current_yaml_path}. Run the download script first.")
+        mode = " --local" if args.local else ""
+        print(f"No snapshot found at {current_yaml_path}.\n"
+              f"Run python src/pipeline/download/{SOURCE}/{DATASET_NAME}.py{mode} first.")
         sys.exit(1)
 
     with open(current_yaml_path, "r", encoding="utf-8") as f:
@@ -46,7 +55,7 @@ def main():
 
     df, thin_meta = standardise_owid_chart_data(csv_bytes, metadata)
 
-    out_dir = Path(DATA_PATH, "standardised") / SOURCE / DATASET_NAME
+    out_dir = Path(data_path, "standardised") / SOURCE / DATASET_NAME
     out_dir.mkdir(parents=True, exist_ok=True)
     out_csv = out_dir / f"{DATASET_NAME}.csv"
     out_meta = out_dir / f"{DATASET_NAME}.meta.yaml"
@@ -64,13 +73,13 @@ def main():
 
     print(f"Standardised {len(df):,} rows to {out_dir}")
 
-    print("Initiating cloud sync...")
     upload_map = {
-        out_csv: out_csv.relative_to(DATA_PATH).as_posix(),
-        out_meta: out_meta.relative_to(DATA_PATH).as_posix(),
+        out_csv: out_csv.relative_to(data_path).as_posix(),
+        out_meta: out_meta.relative_to(data_path).as_posix(),
     }
-    sync_to_storage(upload_map)
+    sync_to_storage(upload_map, local=args.local)
     print(f"Standardise pipeline complete for {SOURCE}/{DATASET_NAME}!")
+
 
 if __name__ == "__main__":
     main()
