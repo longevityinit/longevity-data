@@ -88,49 +88,63 @@ def write_html(meta: dict, dst_dir: Path, value_col: str, data_filename: str) ->
     return dst
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run this pipeline stage.")
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build the life-expectancy chart.")
     parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
-    args = parser.parse_args()
-    print(f"Building chart for {CHART_SLUG}...")
-    output_root = get_output_root(ROOT_PATH, local=args.local)
-    data_path = output_root / "data"
-    charts_path = output_root / "charts"
-    lib_dir = charts_path / "lib"
-    vendor_dir = charts_path / "vendor"
-    std_dir = data_path / "standardised" / "owid" / DATASET_NAME
+    return parser.parse_args()
+
+
+def load_chart_inputs(output_root: Path, *, local: bool) -> tuple[Path, dict]:
+    """Check the standardised inputs and load their chart metadata."""
+    std_dir = output_root / "data" / "standardised" / "owid" / DATASET_NAME
     src_csv = std_dir / f"{DATASET_NAME}.csv"
     src_meta = std_dir / f"{DATASET_NAME}.meta.yaml"
 
     for path in (src_csv, src_meta):
         if not path.exists():
-            mode = " --local" if args.local else ""
+            mode = " --local" if local else ""
             print(f"Missing: {path}\nRun python src/pipeline/standardise/owid/{DATASET_NAME}.py{mode} first.")
             sys.exit(1)
 
     with open(src_meta, encoding="utf-8") as f:
-        meta = yaml.safe_load(f)
+        return src_csv, yaml.safe_load(f)
 
+
+def prepare_chart_assets(charts_path: Path) -> list[Path]:
+    """Prepare the browser libraries and renderer in their served locations."""
+    vendor_dir = charts_path / "vendor"
     ensure_vendor_assets(vendor_dir)
-    lib_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ROOT_PATH / "src/charts/longevityplot.js", lib_dir / "longevityplot.js")
+    renderer = charts_path / "lib" / "longevityplot.js"
+    renderer.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT_PATH / "src/charts/longevityplot.js", renderer)
+    return [vendor_dir / D3_FILENAME, vendor_dir / PLOT_FILENAME, renderer]
 
+
+def build_chart(src_csv: Path, meta: dict, charts_path: Path) -> list[Path]:
+    """Write the public CSV and HTML, returning the generated files."""
     src_col = meta["columns"][0]["name"]
     public_col = public_column_name(src_col)
     data_filename = f"{CHART_SLUG}_tli.csv"
-
     chart_dir = charts_path / CHART_SLUG
-    write_data_csv(src_csv, chart_dir, {src_col: public_col}, data_filename)
-    write_html(meta, chart_dir, public_col, data_filename)
-    print(f"Chart written to {chart_dir}")
 
-    sync_to_storage({
-        vendor_dir / D3_FILENAME:       f"charts/vendor/{D3_FILENAME}",
-        vendor_dir / PLOT_FILENAME:      f"charts/vendor/{PLOT_FILENAME}",
-        lib_dir / "longevityplot.js":    "charts/lib/longevityplot.js",
-        chart_dir / data_filename:       f"charts/{CHART_SLUG}/{data_filename}",
-        chart_dir / "index.html":        f"charts/{CHART_SLUG}/index.html",
-    }, local=args.local)
+    data_file = write_data_csv(src_csv, chart_dir, {src_col: public_col}, data_filename)
+    html_file = write_html(meta, chart_dir, public_col, data_filename)
+    print(f"Chart written to {chart_dir}")
+    return [data_file, html_file]
+
+
+def main():
+    args = parse_args()
+    print(f"Building chart for {CHART_SLUG}...")
+    output_root = get_output_root(ROOT_PATH, local=args.local)
+    charts_path = output_root / "charts"
+
+    src_csv, meta = load_chart_inputs(output_root, local=args.local)
+    artifacts = prepare_chart_assets(charts_path)
+    artifacts.extend(build_chart(src_csv, meta, charts_path))
+
+    upload_map = {path: path.relative_to(output_root).as_posix() for path in artifacts}
+    sync_to_storage(upload_map, local=args.local)
     print(f"Chart build complete for {CHART_SLUG}!")
 
 
