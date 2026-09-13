@@ -15,12 +15,13 @@ If you want to help out, please [get in touch](https://thelongevityinitiative.or
 
 Local builds need no storage credentials or `.env` file. Follow the
 [local development guide](docs/development.md) to install dependencies and run
-the pipeline with `--local`. Local data, metadata, and chart previews are written
+the pipeline. Local data, metadata, and chart previews are written
 to the gitignored `output/` directory.
 
 For cloud uploads, copy `env.example` to `.env` in the repository root and fill
 in the four `B2_*` settings. Keep credentials in `.env`, which is gitignored.
-Omitting `--local` retains the scripts' automatic-upload behavior.
+Build stages never upload. Use `python src/pipeline/publish.py --manifest <path>`
+to publish explicitly; see the development guide for dry runs and recovery.
 
 ## Repository layout
 
@@ -28,9 +29,9 @@ Omitting `--local` retains the scripts' automatic-upload behavior.
 - `src/charts/`: browser JavaScript maintained by this project.
 - `tests/`: automated regression tests.
 - `docs/`: architecture, implementation plan, and development instructions.
-- `data/`: normal pipeline data; selected provenance metadata is tracked.
+- `data/`: reviewed snapshot provenance, required in Git before publication.
 - `output/`: fully ignored local data and chart builds, including vendor libraries.
 
-Normal upload-enabled builds still generate charts in ignored `charts/` and
-retain the existing publication paths. Edit source in `src/`, not generated
-copies in `output/` or `charts/`.
+All generated files live in `output/`. Edit source in `src/`. Use
+`record_metadata.py --manifest <path>` to prepare provenance for review and
+commit; publication verifies it matches Git before accessing the bucket.

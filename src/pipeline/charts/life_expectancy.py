@@ -20,7 +20,7 @@ TEMPLATE_FILE = script_path.parent / "templates" / "line_chart.html"
 sys.path.append(str(ROOT_PATH / "src/pipeline"))
 
 from utils.paths import get_output_root
-from utils.storage import sync_to_storage
+from utils.publication import write_manifest, validate_manifest
 
 PLOT_VERSION = "0.6.16"
 PLOT_URL = f"https://cdn.jsdelivr.net/npm/@observablehq/plot@{PLOT_VERSION}/dist/plot.umd.min.js"
@@ -90,11 +90,10 @@ def write_html(meta: dict, dst_dir: Path, value_col: str, data_filename: str) ->
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Build the life-expectancy chart.")
-    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
     return parser.parse_args()
 
 
-def load_chart_inputs(output_root: Path, *, local: bool) -> tuple[Path, dict]:
+def load_chart_inputs(output_root: Path) -> tuple[Path, dict]:
     """Check the standardised inputs and load their chart metadata."""
     std_dir = output_root / "data" / "standardised" / "owid" / DATASET_NAME
     src_csv = std_dir / f"{DATASET_NAME}.csv"
@@ -102,8 +101,7 @@ def load_chart_inputs(output_root: Path, *, local: bool) -> tuple[Path, dict]:
 
     for path in (src_csv, src_meta):
         if not path.exists():
-            mode = " --local" if local else ""
-            print(f"Missing: {path}\nRun python src/pipeline/standardise/owid/{DATASET_NAME}.py{mode} first.")
+            print(f"Missing: {path}\nRun python src/pipeline/standardise/owid/{DATASET_NAME}.py first.")
             sys.exit(1)
 
     with open(src_meta, encoding="utf-8") as f:
@@ -134,17 +132,22 @@ def build_chart(src_csv: Path, meta: dict, charts_path: Path) -> list[Path]:
 
 
 def main():
-    args = parse_args()
+    parse_args()
     print(f"Building chart for {CHART_SLUG}...")
-    output_root = get_output_root(ROOT_PATH, local=args.local)
+    output_root = get_output_root(ROOT_PATH)
     charts_path = output_root / "charts"
 
-    src_csv, meta = load_chart_inputs(output_root, local=args.local)
+    src_csv, meta = load_chart_inputs(output_root)
+    source_manifest = src_csv.parent / "publish.json"
+    source_entries = validate_manifest(source_manifest)
+    if src_csv.resolve() not in {path for path, entry in source_entries}:
+        raise ValueError("Standardised manifest does not include chart input")
     artifacts = prepare_chart_assets(charts_path)
     artifacts.extend(build_chart(src_csv, meta, charts_path))
 
     upload_map = {path: path.relative_to(output_root).as_posix() for path in artifacts}
-    sync_to_storage(upload_map, local=args.local)
+    write_manifest(upload_map, charts_path / CHART_SLUG / "publish.json",
+                   kind="chart", dependencies=[source_manifest])
     print(f"Chart build complete for {CHART_SLUG}!")
 
 

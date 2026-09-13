@@ -13,19 +13,22 @@ D3 and Observable Plot for presentation.
 | --- | --- |
 | Download | `src/pipeline/download/owid/life_expectancy.py` fetches an OWID chart's CSV and metadata, using ETags and CSV hashes to skip unchanged data. |
 | Manual ingest | `src/pipeline/download/ingest_manual.py` imports CSV or ZIP exports and records dimensions, checksums, and provenance. |
-| Snapshot | `data/snapshots/<source>/<dataset>/<date>/` holds source artifacts; `current.yaml` identifies the current version. |
+| Snapshot | `output/data/snapshots/<source>/<dataset>/<date>/` holds source artifacts; `current.yaml` identifies the current version. |
 | Standardise | `src/pipeline/standardise/owid/life_expectancy.py` normalizes column names, checks duplicate entity/year rows, and writes CSV and selected metadata. |
 | Chart | `src/pipeline/charts/life_expectancy.py` creates HTML and a public CSV using a template and `src/charts/longevityplot.js`. |
-| Publish | Each pipeline script uploads its outputs through `src/pipeline/utils/storage.py` to S3-compatible storage configured with `B2_*` variables. |
+| Publish | `src/pipeline/publish.py` validates a generated publication manifest and uploads its artifacts to S3-compatible storage configured with `B2_*` variables. |
 
 Raw data is gitignored; metadata and selected licence files are tracked. Source
 CSVs are not restored automatically on a fresh clone. Standardised outputs and
 generated charts currently overwrite their previous versions.
 
-Scripts locate the repository from their own paths. All stages accept `--local`
-to write data and preview assets under ignored `output/` without `.env`,
-credentials, or uploads. Omitting it retains the original paths and automatic uploads. Snapshot importers update local
-state before upload, so a failed upload can leave a snapshot that reruns skip.
+Scripts locate the repository from their own paths and always generate files
+under ignored `output/`, without credentials or uploads. The former `--local`
+flag is removed. Publication manifests pin source dependencies by checksum.
+`record_metadata.py` copies source provenance to `data/` for review; publication
+requires matching committed records, including for charts and standardised data.
+It verifies remote checksums on retry and publishes frozen snapshot pointers
+last. Local receipts record progress. Chart releases still use mutable paths.
 
 ## Proposed flow
 

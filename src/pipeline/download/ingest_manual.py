@@ -14,8 +14,9 @@ read straight out of the export, so the operator types as little as possible.
 
 The original zip is read in memory and never copied into the repo; only the
 canonical extracted artefacts are written. The CSV goes to the snapshot folder
-(gitignored) and B2; the licence and metadata YAML are version-controlled.
-With --local, all artifacts stay in ignored output/ and nothing is uploaded.
+(gitignored); the licence and metadata YAML are version-controlled.
+A publication manifest supports a separate, explicit upload command.
+Build stages never upload. All artifacts stay in ignored output/.
 
 Usage:
     python src/pipeline/download/ingest_manual.py \
@@ -43,6 +44,7 @@ ROOT_PATH = Path(__file__).resolve().parents[3]
 sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
 
 from utils.paths import get_output_root
+from utils.publication import snapshot_manifest
 
 # GBD's three estimate columns: the point estimate plus its 95% uncertainty
 # interval. Override with --value-columns for other sources.
@@ -61,7 +63,6 @@ def parse_args():
     p.add_argument("--citation", help="Citation string. Read from the bundled licence file or templated if omitted.")
     p.add_argument("--value-columns", help="Comma-separated estimate columns (default: val,upper,lower).")
     p.add_argument("--date", help="Snapshot date YYYY-MM-DD (default: today).")
-    p.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
     return p.parse_args()
 
 
@@ -183,7 +184,7 @@ def _resolve_citation(override, licence_text, release, year, url):
 
 def main():
     args = parse_args()
-    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
+    data_path = get_output_root(ROOT_PATH) / "data"
     archive_path = Path(args.archive).expanduser().resolve()
     if not archive_path.exists():
         sys.exit(f"File not found: {archive_path}")
@@ -199,6 +200,7 @@ def main():
     current_yaml_path = snapshot_dir / "current.yaml"
 
     if version_dir.exists():
+        snapshot_manifest(version_dir, data_path)
         print(f"There's already a {today} snapshot at {version_dir}! Skipping.")
         sys.exit(0)
 
@@ -211,6 +213,7 @@ def main():
         with open(current_yaml_path, "r", encoding="utf-8") as f:
             previous = yaml.safe_load(f) or {}
         if previous.get("csv_hash") == csv_hash:
+            snapshot_manifest(snapshot_dir / previous["version"], data_path)
             print(f"CSV hash matches the current snapshot ({csv_hash}). Data is identical. Exiting.")
             sys.exit(0)
 
@@ -241,29 +244,21 @@ def main():
         "licence": LICENCE_NAME,
         "citation": citation,
     }
-    with open(meta_path, "w", encoding="utf-8") as f:
+    with open(meta_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(meta, f, sort_keys=False, allow_unicode=True)
 
-    upload_map = {
-        csv_path: csv_path.relative_to(data_path).as_posix(),
-        meta_path: meta_path.relative_to(data_path).as_posix(),
-    }
-
     if licence_text is not None:
-        with open(licence_path, "w", encoding="utf-8") as f:
+        with open(licence_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(licence_text)
-        upload_map[licence_path] = licence_path.relative_to(data_path).as_posix()
     else:
         print("Warning: no licence/citation .txt found in the archive — none saved.")
 
-    with open(current_yaml_path, "w", encoding="utf-8") as f:
+    with open(current_yaml_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump({"version": today, "csv_hash": csv_hash}, f, sort_keys=False)
-    upload_map[current_yaml_path] = current_yaml_path.relative_to(data_path).as_posix()
 
     print(f"Ingested {len(df):,} rows to {version_dir}")
 
-    from utils.storage import sync_to_storage
-    sync_to_storage(upload_map, local=args.local)
+    snapshot_manifest(version_dir, data_path)
 
     print(f"Manual ingest complete for {args.source}/{args.dataset}!")
     print(f"You can now delete the source download: {archive_path}")
