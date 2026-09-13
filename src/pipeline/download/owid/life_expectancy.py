@@ -21,15 +21,14 @@ sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
 from utils.paths import get_output_root
 
 from utils.owid import download_owid_chart_data
-from utils.storage import sync_to_storage
+from utils.publication import snapshot_manifest
 
 
 def main():
     parser = argparse.ArgumentParser(description="Run this pipeline stage.")
-    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
-    args = parser.parse_args()
+    parser.parse_args()
     print(f"Downloading {DATASET_NAME} from {SOURCE}...")
-    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
+    data_path = get_output_root(ROOT_PATH) / "data"
     today = datetime.date.today().isoformat()
 
     # Build local folder architecture
@@ -38,6 +37,7 @@ def main():
 
     # If there's already a dataset-TODAY folder, skip
     if version_dir.exists():
+        snapshot_manifest(version_dir, data_path)
         print(f"There's already a {version_dir.name} download! Skipping.")
         sys.exit(0)
 
@@ -60,6 +60,7 @@ def main():
     result = download_owid_chart_data(CHART_SLUG, previous_etag)
 
     if result is None:
+        snapshot_manifest(snapshot_dir / current_data["version"], data_path)
         print(f"Server returned 304 Not Modified. {DATASET_NAME} is already up to date. Exiting.")
         sys.exit(0)
 
@@ -71,6 +72,7 @@ def main():
     json_hash = xxhash.xxh3_64_hexdigest(json_bytes)
 
     if csv_hash == previous_hash:
+        snapshot_manifest(snapshot_dir / current_data["version"], data_path)
         print(f"Downloaded and existing file hashes match ({csv_hash}). Data is identical. Exiting.")
         sys.exit(0)
 
@@ -94,23 +96,15 @@ def main():
             "json_xxh3_64": json_hash
         }
     }
-    with open(pipeline_yaml_path, "w", encoding="utf-8") as f:
+    with open(pipeline_yaml_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(pipeline_meta, f, sort_keys=False)
 
-    with open(current_yaml_path, "w", encoding="utf-8") as f:
+    with open(current_yaml_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump({"version": today, "etag": new_etag, "csv_hash": csv_hash}, f, sort_keys=False)
 
     print(f"Artefacts and metadata saved to {version_dir}")
 
-    # Cloud sync
-    # Make paths relative to keep cloud tidy
-    upload_map = {
-        csv_path: csv_path.relative_to(data_path).as_posix(),
-        owid_json_path: owid_json_path.relative_to(data_path).as_posix(),
-        pipeline_yaml_path: pipeline_yaml_path.relative_to(data_path).as_posix(),
-        current_yaml_path: current_yaml_path.relative_to(data_path).as_posix(),
-    }
-    sync_to_storage(upload_map, local=args.local)
+    snapshot_manifest(version_dir, data_path)
     print(f"Snapshot pipeline complete for {SOURCE}/{DATASET_NAME}!")
 
 

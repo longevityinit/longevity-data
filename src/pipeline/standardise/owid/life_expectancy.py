@@ -18,22 +18,20 @@ sys.path.append(str(Path(ROOT_PATH, "src/pipeline")))
 from utils.paths import get_output_root
 
 from utils.owid import standardise_owid_chart_data
-from utils.storage import sync_to_storage
+from utils.publication import write_manifest, snapshot_manifest
 
 
 def main():
     parser = argparse.ArgumentParser(description="Run this pipeline stage.")
-    parser.add_argument("--local", action="store_true", help="Write local artifacts without uploading to storage.")
-    args = parser.parse_args()
+    parser.parse_args()
     print(f"Standardising {DATASET_NAME} from {SOURCE}...")
-    data_path = get_output_root(ROOT_PATH, local=args.local) / "data"
+    data_path = get_output_root(ROOT_PATH) / "data"
     snapshot_dir = Path(data_path, "snapshots") / SOURCE / DATASET_NAME
     current_yaml_path = snapshot_dir / "current.yaml"
 
     if not current_yaml_path.exists():
-        mode = " --local" if args.local else ""
         print(f"No snapshot found at {current_yaml_path}.\n"
-              f"Run python src/pipeline/download/{SOURCE}/{DATASET_NAME}.py{mode} first.")
+              f"Run python src/pipeline/download/{SOURCE}/{DATASET_NAME}.py first.")
         sys.exit(1)
 
     with open(current_yaml_path, "r", encoding="utf-8") as f:
@@ -52,6 +50,8 @@ def main():
         csv_bytes = f.read()
     with open(json_path, "r", encoding="utf-8") as f:
         metadata = json.load(f)
+
+    source_manifest = snapshot_manifest(version_dir, data_path)
 
     df, thin_meta = standardise_owid_chart_data(csv_bytes, metadata)
 
@@ -77,7 +77,8 @@ def main():
         out_csv: out_csv.relative_to(data_path).as_posix(),
         out_meta: out_meta.relative_to(data_path).as_posix(),
     }
-    sync_to_storage(upload_map, local=args.local)
+    write_manifest(upload_map, out_dir / "publish.json", kind="standardised",
+                   dependencies=[source_manifest])
     print(f"Standardise pipeline complete for {SOURCE}/{DATASET_NAME}!")
 
 

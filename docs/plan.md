@@ -22,15 +22,17 @@ values can be traced back to the source.
 ## 2. Make the pipeline reliable locally
 
 - [x] Derive the repository root independently of `.env` discovery.
-- [x] Add `--local` to all stages, with data and preview assets isolated in ignored `output/`.
-- [ ] Separate publication into an explicit command with upload recovery.
+- [x] Always build in ignored `output/`; remove the local/non-local distinction.
+- [x] Prepare snapshot provenance for review and require matching committed records before publication.
+- [x] Separate publication into an explicit command with upload recovery.
 - [x] Document Python setup and record resolved dependency versions for Python 3.10/Linux.
 - [ ] **Optional:** restore a selected snapshot from storage, verify its checksum,
       and rebuild without fetching newer upstream data. Not required for initial local development.
-- [ ] Fix snapshot upload retries so local completion cannot suppress remote recovery.
+- [x] Make snapshot publication retries independent of importer completion.
 - [ ] Reject or explicitly align mismatched multipart CSV headers.
 - [ ] Track metadata-only upstream changes as well as CSV changes.
-- [ ] Add focused regression tests for upload failure/retry and CSV schema mismatch.
+- [x] Add focused regression tests for upload failure/retry and publication validation.
+- [ ] Add focused regression tests for CSV schema mismatch.
 
 Done when a local build requires no cloud credentials and failed publication
 can be retried without deleting or re-downloading a valid snapshot.

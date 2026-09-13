@@ -202,3 +202,8 @@ data/**
 
 # Local pipeline artifacts, including metadata and preview assets
 /output/
+
+# Generated publication manifests, receipts, and frozen pointers
+**/publish.json
+**/publish.receipt.json
+**/.publish/
