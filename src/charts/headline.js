@@ -75,9 +75,12 @@
           .tickSize(-(width - margin.left - margin.right)))
         .call(g => g.select('.domain').remove())
         .call(g => g.selectAll('.tick line').attr('stroke', '#e7ebee'));
+      // Leave at least 40px between four-digit year labels, using whole decades.
+      const plotWidth = width - margin.left - margin.right;
+      const yearStep = Math.max(10, Math.ceil((data.end_year - data.start_year) * 40 / plotWidth / 10) * 10);
       svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x)
-          .tickValues(d3.range(Math.ceil(data.start_year / 10) * 10, data.end_year + 1, 10))
+          .tickValues(d3.range(data.start_year, data.end_year + 1, yearStep))
           .tickFormat(d3.format('d')));
       svg.append('text')
         .attr('transform', `translate(16,${(margin.top + height - margin.bottom) / 2}) rotate(-90)`)
