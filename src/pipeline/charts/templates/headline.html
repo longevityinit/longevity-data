@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A century of unequal progress: life expectancy at birth for women, 1900–2023 · Our Longevity in Data</title>
+  <script defer src="../vendor/d3-7.9.0.min.js"></script>
+  <script defer src="headline.js?v=2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #202d39; background: #fff; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 1150px; margin: auto; padding: 32px clamp(16px, 4vw, 48px); }
+    .eyebrow { font-size: 12px; letter-spacing: .13em; text-transform: uppercase; color: #65727d; }
+    h1 { font: 600 clamp(22px, 3vw, 30px)/1.2 Georgia, serif; margin: 12px 0; }
+    .subtitle { color: #56616d; max-width: 760px; }
+    .chart-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+    .chart-toolbar fieldset { flex-shrink: 0; margin: 0; }
+    .sex-selector { display: inline-flex; min-width: 0; gap: 2px; border: 1px solid #cad2d9; border-radius: 8px; padding: 3px; background: #f2f5f7; }
+    .sex-selector label { position: relative; cursor: pointer; }
+    .visually-hidden, .sex-selector input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .sex-selector span { display: flex; align-items: center; justify-content: center; min-height: 32px; min-width: 68px; padding: 4px 12px; border-radius: 5px; color: #425466; font-size: 13px; font-weight: 600; }
+    .sex-selector label:hover span { background: #e3e9ee; }
+    .sex-selector input:checked + span { background: #234f72; color: #fff; }
+    .sex-selector input:focus-visible + span { outline: 3px solid #236cad; outline-offset: 3px; }
+    a { color: #245b7e; }
+    :focus-visible { outline: 3px solid #236cad; outline-offset: 4px; }
+    #legend { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.4; }
+    #legend li { display: flex; align-items: center; gap: 10px; }
+    #legend .country-legend { grid-column: 1 / -1; }
+    .swatch { flex: 0 0 36px; width: 36px; height: 12px; }
+    #chart { position: relative; min-height: 330px; } #chart svg { display: block; width: 100%; }
+    .chart-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 24px; }
+    .chart-key { align-self: start; padding-top: 24px; }
+    .opacity-key { border-top: 1px solid #e2e6ea; padding-top: 16px; margin-top: 20px; font-size: 12px; color: #536372; }
+    .opacity-key p { margin: 0 0 8px; }
+    #opacity-samples { list-style: none; padding: 0; margin: 0; }
+    #opacity-samples li { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+    #opacity-samples span { display: inline-block; width: 28px; border-top: 1px solid #75818b; }
+    @media (max-width: 800px) {
+      .chart-layout { grid-template-columns: minmax(0, 1fr); }
+      .chart-key { padding-top: 0; }
+      #legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #opacity-samples { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    }
+    @media (max-width: 480px) { #legend { grid-template-columns: minmax(0, 1fr); } }
+    #tooltip { position: absolute; background: #fff; border: 1px solid #b9c6cf; padding: 10px; box-shadow: 0 3px 12px #0002; pointer-events: none; font-size: 12px; max-width: 245px; z-index: 1; }
+    #status { font-size: 14px; color: #536372; }
+    footer { border-top: 1px solid #d9dfe4; margin-top: 24px; padding-top: 14px; font-size: 13px; }
+    details { margin: 16px 0; } summary { cursor: pointer; font-weight: 600; }
+    .table-scroll { max-height: 360px; overflow: auto; margin-top: 12px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 7px 10px; border-bottom: 1px solid #e2e6ea; text-align: right; }
+    th:first-child, td:first-child { text-align: left; } thead { position: sticky; top: 0; background: #fff; }
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">Our Longevity in Data</div>
+  <h1 id="chart-title">A century of unequal progress: life expectancy at birth for women, 1900–2023</h1>
+  <p class="subtitle">How life expectancy has changed across countries, income groups, and the world. Each grey line represents a country or territory; darker lines indicate larger populations.</p>
+  <div class="chart-toolbar">
+    <fieldset class="sex-selector"><legend class="visually-hidden">Sex</legend>
+      <label><input type="radio" name="sex" value="female" checked><span>Women</span></label>
+      <label><input type="radio" name="sex" value="male"><span>Men</span></label>
+    </fieldset>
+  </div>
+  <p id="status" role="status" aria-live="polite">Loading life-expectancy data…</p>
+  <div class="chart-layout">
+    <div id="chart"></div>
+    <aside class="chart-key" aria-label="Chart legend and population key">
+      <ul id="legend" aria-label="Chart legend"></ul>
+      <div class="opacity-key">
+      <p><strong>Opacity ∝ population share</strong><br>Share of total population, 2023</p>
+      <ul id="opacity-samples"></ul>
+      </div>
+    </aside>
+  </div>
+  <details><summary>View highlighted values as a table</summary><div class="table-scroll" tabindex="0"><table>
+    <caption id="table-caption">Annual life expectancy in years</caption>
+    <thead><tr><th scope="col">Year</th><th scope="col">Best practice</th><th scope="col">High income</th><th scope="col">World life expectancy</th><th scope="col">Low income</th><th scope="col">10th percentile</th><th scope="col">25th percentile</th></tr></thead><tbody id="values"></tbody>
+  </table></div></details>
+  <footer>
+    <p>Source: <a id="source" href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men">HMD, UN World Population Prospects, and historical population via Our World in Data</a>.</p>
+    <p><a href="observations.csv" download>Download observations (CSV)</a> · <a href="headline.json" download>Download chart data and provenance (JSON)</a></p>
+    <details><summary>Methodology and coverage</summary>
+      <p><strong>Country-line faintness:</strong> opacity reflects each location’s share of the included countries’ total population in 2023, held constant across the timeline. A square-root scale keeps small populations visible, ranging from 6% opacity to 50% at a population share of 20% or more. This visual styling uses total population for both views; percentile calculations use sex-specific population.</p>
+      <p><strong>Percentile comparison:</strong> the dashed 10th and 25th percentile lines rank countries and territories by life expectancy, then accumulate their female or male populations. Each line is the first country value reaching its population threshold, with no interpolation. Women’s values are weighted by female population, and men’s values by male population. All sizes are included, and aggregates are excluded. Missing life expectancy is excluded and weights are renormalized over available observations. Values start in 1950. These describe country-level life expectancy, not the shortest-lived 10% or 25% of individuals, nor the average within the bottom group. Large countries can produce jumps.</p>
+      <p>This first version covers 1900–2023, at birth, separately for females and males. It excludes projections. Countries and territories are the export's locations with an OWID world-region assignment; regional and income aggregates are excluded from country calculations.</p>
+      <p><strong>Best practice:</strong> the highest value among countries and territories with total population strictly above one million in that year. Ties retain every winning location. <strong>World life expectancy:</strong> the sex-specific World series supplied by UN WPP through OWID, used directly without averaging country values.</p>
+      <p><strong>Income groups:</strong> the high- and low-income series supplied by UN WPP through OWID, used directly rather than averaging country life expectancies. Their classification vintage and membership methodology still require confirmation before publication.</p>
+      <p>Missing values remain gaps; no interpolation is applied. Changing country coverage can affect the frontier. Before 1950, only a small, changing set of countries has observations: the World and income-group series therefore start in 1950. Historical population uses OWID’s current-border estimates, while HMD historical mortality coverage may differ; historical frontier eligibility needs further geographic review before publication. UK constituent areas without country IDs are excluded. This is a local first version; age 65 is not included.</p>
+    </details>
+  </footer>
+</main></body>
+</html>

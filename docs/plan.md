@@ -9,7 +9,7 @@ current system, proposed layers, and definition choices.
 
 - [ ] Confirm the written specification versus the mockup's different series.
 - [ ] Define country/territory eligibility, the annual population threshold,
-      frontier ties, global median, and income-group aggregation and membership.
+      frontier ties, World life expectancy, and income-group aggregation and membership.
 - [ ] Audit UN WPP and OWID artifacts for female/male life expectancy at birth
       and 65, annual population, income groups, units, and historical coverage.
 - [ ] Choose and record source releases, citations, licences, and permitted uses.
@@ -42,7 +42,7 @@ can be retried without deleting or re-downloading a valid snapshot.
 - [ ] Implement the selected source adapter and explicit sex/age/measure schema.
 - [ ] Add stable location IDs, population references, and versioned income classifications.
 - [ ] Validate dimension uniqueness, required units, join coverage, and missing values.
-- [ ] Calculate country, frontier, median, and income-group series.
+- [ ] Calculate country, frontier, World, and income-group series.
 - [ ] Preserve frontier winners, input snapshot IDs, and calculation code version.
 - [ ] Test the one-million boundary, ties, missing years, aggregate exclusion,
       sex/age isolation, and chosen aggregation rules with small known examples.
@@ -82,3 +82,15 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 - [ ] Country dashboards consuming the shared indicators.
 - [ ] Validate IHME provenance before adding healthy-life-expectancy measures.
 - [ ] Add life-table inputs for lifespan percentiles and disparity measures.
+
+## Headline first version implemented
+
+- [x] Separate local at-birth preview, female default with native radio controls.
+- [x] OWID snapshots for modern values and the requested 1900–1949 history.
+- [x] Python frontier calculations and source-provided World series, population threshold and ties.
+- [x] Grey country lines, four reference series, year tooltips and annual table.
+- [x] CSV/JSON downloads, source information and explicit early-coverage caveats.
+- [x] Focused tests for thresholds, ties, sex isolation, missing data and historical joins.
+- [ ] Confirm historical geographic comparability, source licences and income-group membership before publication.
+- [ ] Complete browser/mobile/accessibility review and independently verify sample values.
+- [ ] Add age 65 after reviewing the at-birth graph.

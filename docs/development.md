@@ -191,3 +191,47 @@ python -m http.server 8000 --bind 127.0.0.1 --directory output/charts
 
 Open <http://127.0.0.1:8000/life-expectancy/>. Starting the server does not build
 the chart; that URL is unavailable until its output exists. Stop with Ctrl+C.
+
+## Headline graph (first version)
+
+The new chart is separate from the original life-expectancy preview:
+
+```bash
+python src/pipeline/download/owid/headline.py
+python src/pipeline/indicators/headline.py
+python src/pipeline/charts/headline.py
+python -m http.server 8000 --bind 127.0.0.1 --directory output/charts
+```
+
+Open <http://127.0.0.1:8000/headline-life-expectancy/>. Rebuild after changing
+`src/charts/headline.js` or the headline template. No new libraries are required;
+the renderer uses the existing pinned D3 asset. The old Plot chart is unchanged.
+
+The importer stores five independent OWID snapshots: the modern female/male
+export (which includes population and income groups), historical female/male
+life expectancy, historical population, and female/male population by age. The indicator stage validates inputs,
+joins historical population by location code and year, and calculates summaries.
+All five snapshot dependencies are pinned in the publication manifest.
+
+The first version covers 1900–2023 at birth. Before 1950 it includes only historical
+locations that match the modern country/territory universe. Coverage is sparse;
+the World series and income groups start in 1950 to avoid presenting the
+early sample as globally representative. Population must
+be strictly above one million for frontier eligibility; all tied winners are
+retained. Other countries remain in the background. Missing values
+are not interpolated. Historical population is based on current borders; its
+compatibility with historical mortality territories needs review before publishing.
+The income classification vintage also remains a publication review item.
+
+The generated JSON records input snapshot versions, source descriptions, and
+Git revision/dirty status. A dirty revision is not a reproducible code release;
+commit and rebuild before publication. CSV downloads contain standardized input
+observations; JSON includes calculated series and frontier winners.
+
+Use `output/charts/headline-life-expectancy/publish.json` with the existing dry-run
+and metadata preparation commands. This first version is for local review;
+source licences, income membership and historical geographic alignment still
+need confirmation before public release.
+
+Percentile weights use sex-specific population, summing non-overlapping five-year
+age groups including 100+. Best-practice eligibility still uses total population.
