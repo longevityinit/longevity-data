@@ -4,11 +4,8 @@
   const container = document.getElementById('chart');
   const series = [
     {id: 'frontier', name: 'Best practice', color: '#ff5722'},
-    {id: 'OWID_HIC', name: 'High income', color: '#9454e8'},
     {id: 'OWID_WRL', name: 'World life expectancy', color: '#2680ff'},
-    {id: 'OWID_LIC', name: 'Low income', color: '#00a6b2'},
     {id: 'p10', name: '10th percentile (population-weighted)', color: '#e63e91', dash: '6 3'},
-    {id: 'p25', name: '25th percentile (population-weighted)', color: '#00b878', dash: '2 3'},
   ];
   try {
     const response = await fetch('headline.json');
@@ -18,22 +15,11 @@
     const names = new Map(data.rows.map(r => [r.code, r.entity]));
     const years = d3.range(data.start_year, data.end_year + 1);
     const format = value => value == null ? '—' : value.toFixed(2);
-    const legend = d3.select('#legend');
-    function addSwatch(entry, color, width, dash) {
-      entry.append('svg').attr('class', 'swatch').attr('viewBox', '0 0 36 12').attr('aria-hidden', 'true')
-        .append('line').attr('x1', 0).attr('x2', 36).attr('y1', 6).attr('y2', 6)
-        .attr('stroke', color).attr('stroke-width', width).attr('stroke-dasharray', dash || null);
-    }
-    for (const item of series) {
-      const li = legend.append('li');
-      addSwatch(li, item.color, 2.7, item.dash);
-      li.append('span').text(item.name);
-    }
-    const countryLegend = legend.append('li').attr('class', 'country-legend');
-    addSwatch(countryLegend, '#65727d', 2);
-    const countryLegendLabel = countryLegend.append('span');
+    const countryLegendLabel = d3.select('#country-key');
     document.getElementById('source').textContent = `${data.source}, via Our World in Data`;
     function render() {
+      let hoveredSeries = null;
+      let focusedSeries = null;
       const sex = document.querySelector('input[name="sex"]:checked').value;
       const title = `A century of unequal progress: life expectancy at birth for ${sex === 'female' ? 'women' : 'men'}, ${data.start_year}–${data.end_year}`;
       document.getElementById('chart-title').textContent = title;
@@ -62,12 +48,12 @@
       }
       const summary = new Map(series.map(s => [s.id, new Map((grouped.get(s.id) || []).map(r => [r.year, r]))]));
       const width = Math.max(280, container.clientWidth), height = width < 600 ? 350 : 480;
-      const margin = {left: 64, right: 16, top: 24, bottom: 35};
+      const margin = {left: 64, right: width < 600 ? 112 : 175, top: 24, bottom: 35};
       const x = d3.scaleLinear().domain([data.start_year, data.end_year]).range([margin.left, width - margin.right]);
       const y = d3.scaleLinear().domain([0, Math.ceil(d3.max(data.rows, r => r.value) / 10) * 10]).range([height - margin.bottom, margin.top]);
       container.replaceChildren();
       const svg = d3.select(container).append('svg').attr('viewBox', `0 0 ${width} ${height}`)
-        .attr('role', 'img').attr('aria-label', `${sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, ${data.start_year}–${data.end_year}. Annual highlighted values are available in the table below.`);
+        .attr('role', 'group').attr('aria-label', `${sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, ${data.start_year}–${data.end_year}. Annual highlighted values are available in the table below.`);
       svg.append('g').attr('transform', `translate(${margin.left},0)`)
         .call(d3.axisLeft(y)
           .tickValues(d3.range(0, y.domain()[1] + 1, 10))
@@ -102,22 +88,77 @@
       }
       for (const values of grouped.values()) {
         if (values[0].kind !== 'country') continue;
-        svg.append('path').datum(points(values)).attr('d', line).attr('fill', 'none')
+        svg.append('path').attr('class', 'country-line').datum(points(values)).attr('d', line).attr('fill', 'none')
           .attr('stroke', '#75818b')
           .attr('stroke-opacity', countryOpacity(populationShares.get(values[0].code) || 0))
           .attr('stroke-width', 1)
           .append('title').text(values[0].entity);
       }
       for (const item of series) {
-        svg.append('path').datum(points(grouped.get(item.id) || [])).attr('d', line)
+        svg.append('path').attr('class', 'summary-line').attr('data-series', item.id).datum(points(grouped.get(item.id) || [])).attr('d', line)
           .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', 2.7).attr('stroke-dasharray', item.dash || null)
           .append('title').text(item.name);
       }
+      // Separate endpoint labels vertically while preserving their value order.
+      const labels = series.flatMap(item => {
+        const last = (grouped.get(item.id) || []).filter(r => r.value != null).sort((a, b) => a.year - b.year).at(-1);
+        return last ? [{...item, last, labelY: y(last.value)}] : [];
+      }).sort((a, b) => a.labelY - b.labelY);
+      const labelGap = width < 600 ? 32 : 25;
+      labels.forEach((item, i) => {
+        item.labelY = Math.max(item.labelY, i ? labels[i - 1].labelY + labelGap : margin.top);
+      });
+      if (labels.length) {
+        const overflow = Math.max(0, labels.at(-1).labelY - (height - margin.bottom - 12));
+        labels.forEach(item => { item.labelY -= overflow; });
+      }
+      const labelX = width - margin.right + 18;
+      for (const item of labels) {
+        svg.append('path').attr('class', 'label-connector').attr('data-series', item.id).attr('d', `M${x(item.last.year)},${y(item.last.value)}L${labelX - 5},${item.labelY}`)
+          .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', 1).attr('stroke-opacity', .65);
+        const button = svg.append('g').attr('class', 'line-label').attr('data-series', item.id)
+          .attr('role', 'group').attr('tabindex', 0).attr('aria-label', item.name)
+          .on('pointerenter', () => { hoveredSeries = item.id; updateHighlight(); })
+          .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
+          .on('focus', function () {
+            focusedSeries = this.matches(':focus-visible') ? item.id : null;
+            updateHighlight();
+          })
+          .on('blur', () => { focusedSeries = null; updateHighlight(); });
+        button.append('rect').attr('x', labelX - 4).attr('y', item.labelY - labelGap / 2)
+          .attr('width', margin.right - 16).attr('height', labelGap).attr('fill', 'transparent');
+        const text = button.append('text').attr('x', labelX).attr('y', item.labelY)
+          .attr('fill', item.color).attr('font-size', width < 600 ? 10 : 12).attr('font-weight', 400)
+          .attr('dominant-baseline', 'middle');
+        const words = item.name.replace(' (population-weighted)', '').split(' ');
+        const lines = [];
+        for (const word of words) {
+          if (!lines.length || (lines.at(-1) + ' ' + word).length > (width < 600 ? 16 : 23)) lines.push(word);
+          else lines[lines.length - 1] += ' ' + word;
+        }
+        lines.forEach((line, i) => text.append('tspan').attr('x', labelX)
+          .attr('dy', i ? '1.1em' : `${-(lines.length - 1) * .55}em`).text(line));
+        text.append('title').text(`${item.name}: ${format(item.last.value)} (${item.last.year})`);
+      }
+      function updateHighlight() {
+        const selectedSeries = hoveredSeries || focusedSeries;
+        svg.selectAll('.country-line').attr('opacity', selectedSeries ? .15 : 1);
+        svg.selectAll('.summary-line, .label-connector').attr('opacity', function () {
+          return !selectedSeries || this.getAttribute('data-series') === selectedSeries ? 1 : .15;
+        });
+        svg.selectAll('.summary-line').attr('stroke-width', function () {
+          return this.getAttribute('data-series') === selectedSeries ? 4 : 2.7;
+        });
+      }
+      updateHighlight();
       const tooltip = d3.select(container).append('div').attr('id', 'tooltip').attr('hidden', true);
       const guide = svg.append('line').attr('y1', margin.top).attr('y2', height - margin.bottom)
         .attr('stroke', '#536372').attr('stroke-dasharray', '3 3').attr('visibility', 'hidden');
       svg.on('pointermove', event => {
         const [px] = d3.pointer(event, svg.node());
+        if (px > width - margin.right || px < margin.left) {
+          tooltip.attr('hidden', true); guide.attr('visibility', 'hidden'); return;
+        }
         const year = Math.max(data.start_year, Math.min(data.end_year, Math.round(x.invert(px))));
         guide.attr('x1', x(year)).attr('x2', x(year)).attr('visibility', 'visible');
         tooltip.attr('hidden', null).style('left', `${Math.max(0, Math.min(width - 250, px + 12))}px`).style('top', '25px');
