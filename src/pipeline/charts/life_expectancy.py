@@ -31,8 +31,14 @@ D3_URL = f"https://cdn.jsdelivr.net/npm/d3@{D3_VERSION}/dist/d3.min.js"
 D3_FILENAME = f"d3-{D3_VERSION}.min.js"
 
 
+VENDOR_NOTICES = ('d3-7.9.0.txt', 'd3-7.9.0-dependencies.txt',
+                  'observable-plot-0.6.16.txt', 'observable-plot-0.6.16-dependencies.txt')
+
+
 def ensure_vendor_assets(vendor_dir: Path):
     vendor_dir.mkdir(parents=True, exist_ok=True)
+    for notice in VENDOR_NOTICES:
+        shutil.copy2(ROOT_PATH / "licenses" / notice, vendor_dir / notice)
     for filename, url in [(D3_FILENAME, D3_URL), (PLOT_FILENAME, PLOT_URL)]:
         dest = vendor_dir / filename
         if dest.exists():
@@ -115,7 +121,8 @@ def prepare_chart_assets(charts_path: Path) -> list[Path]:
     renderer = charts_path / "lib" / "longevityplot.js"
     renderer.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(ROOT_PATH / "src/charts/longevityplot.js", renderer)
-    return [vendor_dir / D3_FILENAME, vendor_dir / PLOT_FILENAME, renderer]
+    return [vendor_dir / D3_FILENAME, vendor_dir / PLOT_FILENAME, renderer,
+            *(vendor_dir / notice for notice in VENDOR_NOTICES)]
 
 
 def build_chart(src_csv: Path, meta: dict, charts_path: Path) -> list[Path]:

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A century of unequal progress: life expectancy at birth for women, 1900–2023 · Our Longevity in Data</title>
   <script defer src="../vendor/d3-7.9.0.min.js"></script>
-  <script defer src="headline.js?v=7"></script>
+  <script defer src="headline.js?v=19"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; color: #202d39; background: #fff; font: 16px/1.6 system-ui, sans-serif; }
@@ -22,12 +22,53 @@
     .sex-selector label:hover span { background: #e3e9ee; }
     .sex-selector input:checked + span { background: #234f72; color: #fff; }
     .sex-selector input:focus-visible + span { outline: 3px solid #236cad; outline-offset: 3px; }
+    #selected-lines { display: flex; flex-wrap: wrap; gap: 8px 16px; list-style: none; padding: 0; font-size: 13px; }
+    #selected-lines li { display: flex; align-items: center; gap: 6px; }
+    .selected-swatch { width: 20px; height: 2px; }
+    #selected-lines button { border: 0; background: transparent; cursor: pointer; padding: 5px; font-size: 18px; }
+    #country-picker { position: relative; margin: 0; font-size: 13px; }
+    #country-count { padding: 7px 12px; border: 1px solid #cad2d9; border-radius: 5px; }
+    .country-panel { position: absolute; top: 100%; left: 0; z-index: 3; width: min(300px, calc(100vw - 40px)); padding: 12px; background: white; border: 1px solid #cad2d9; border-radius: 6px; box-shadow: 0 4px 12px #0002; }
+    #country-search { width: 100%; margin: 6px 0 10px; padding: 8px; }
+    #country-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+    #country-list label { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    #country-list label[hidden] { display: none; }
     a { color: #245b7e; }
     :focus-visible { outline: 3px solid #236cad; outline-offset: 4px; }
     #chart { position: relative; min-height: 330px; } #chart svg { display: block; width: 100%; }
     .chart-layout { display: block; }
+    .year-range { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0; align-items: center; font-size: 13px; }
+    .range-editor { display: grid; grid-template-columns: 56px minmax(0, 1fr) 56px; gap: 20px; width: 100%; align-items: start; }
+    .timeline { cursor: pointer; position: relative; height: 66px; margin: 0 10px; }
+    .timeline-track { position: absolute; left: 0; right: 0; top: 16px; height: 4px; border-radius: 2px; background: linear-gradient(to right, #d9dfe4 var(--range-start), #234f72 var(--range-start), #234f72 var(--range-end), #d9dfe4 var(--range-end)); }
+    .timeline input { appearance: none; -webkit-appearance: none; position: absolute; width: calc(100% + 20px); left: -10px; top: 0; height: 36px; margin: 0; background: transparent; pointer-events: none; }
+    .timeline input::-webkit-slider-runnable-track { height: 4px; background: transparent; }
+    .timeline input::-moz-range-track { height: 4px; background: transparent; }
+    .timeline input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px; background: white; border: 2px solid #234f72; border-radius: 50%; pointer-events: auto; cursor: ew-resize; }
+    .timeline input::-moz-range-thumb { width: 16px; height: 16px; background: white; border: 2px solid #234f72; border-radius: 50%; pointer-events: auto; cursor: ew-resize; }
+    .timeline input:focus { outline: none; }
+    .timeline input:focus-visible { z-index: 2; }
+    .timeline input:focus-visible::-webkit-slider-thumb { background: #dceaf4; }
+    .timeline input:focus-visible::-moz-range-thumb { background: #dceaf4; }
+    .year-range .year-marker { position: absolute; top: 36px; transform: translateX(-50%); background: transparent; border: 0; padding: 5px 2px; font-size: 12px; color: #536372; }
+    .year-marker::before { content: ""; position: absolute; width: 1px; height: 7px; background: #9aa6af; left: 50%; top: -7px; }
+    .year-entry { width: 56px; height: 30px; margin-top: 3px; padding: 3px 5px; border: 1px solid transparent; border-radius: 4px; color: #425466; background: #fff; font: inherit; font-variant-numeric: tabular-nums; text-align: center; }
+    .year-entry:hover, .year-entry:focus { border-color: #8c9eac; }
+    .year-entry:focus { outline: none; }
+    @media (max-width: 600px) {
+      .range-editor { grid-template-columns: 1fr 1fr; gap: 0; }
+      .range-editor .timeline { grid-column: 1 / -1; grid-row: 1; margin: 0 20px; }
+      .year-entry { grid-row: 2; margin-top: 0; }
+      #end-value { justify-self: end; }
+    }
+
+    .year-range button { padding: 6px 10px; cursor: pointer; }
     .chart-key { align-self: start; padding-top: 24px; }
-    .opacity-key { border-top: 1px solid #e2e6ea; padding-top: 16px; margin-top: 20px; font-size: 12px; color: #536372; }
+    .opacity-key { font-size: 12px; color: #536372; }
+    .opacity-key summary { display: flex; align-items: center; gap: 6px; width: fit-content; min-height: 32px; list-style: none; font-weight: 400; }
+    .opacity-key summary::-webkit-details-marker { display: none; }
+    .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid currentColor; border-radius: 50%; font-weight: 600; }
+    .opacity-content { margin-top: 6px; padding: 12px; border: 1px solid #e2e6ea; border-radius: 6px; max-width: 440px; }
     .opacity-key p { margin: 0 0 8px; }
     #opacity-samples { display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; padding: 0; margin: 0; }
     #opacity-samples li { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
@@ -37,7 +78,14 @@
       .chart-key { padding-top: 0; }
       #opacity-samples { display: flex; flex-wrap: wrap; gap: 4px 16px; }
     }
-    #tooltip { position: absolute; background: #fff; border: 1px solid #b9c6cf; padding: 10px; box-shadow: 0 3px 12px #0002; pointer-events: none; font-size: 12px; max-width: 245px; z-index: 1; }
+    #tooltip { position: absolute; background: #fff; border: 1px solid #e2e6ea; border-radius: 4px; box-shadow: 0 6px 24px #0002; pointer-events: none; font-size: 12px; width: max-content; max-width: min(300px, 100%); z-index: 1; }
+    .tooltip-heading { background: #f2f3f4; padding: 6px 10px; font-weight: 600; }
+    .tooltip-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 7px; align-items: baseline; padding: 3px 10px; line-height: 1.35; }
+    .tooltip-row:last-child { padding-bottom: 8px; }
+    .tooltip-swatch { width: 10px; height: 10px; }
+    .tooltip-name small { display: block; color: #65727d; }
+    .tooltip-row strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
     #status { font-size: 14px; color: #536372; }
     footer { border-top: 1px solid #d9dfe4; margin-top: 24px; padding-top: 14px; font-size: 13px; }
     details { margin: 16px 0; } summary { cursor: pointer; font-weight: 600; }
@@ -56,18 +104,46 @@
       <label><input type="radio" name="sex" value="female" checked><span>Women</span></label>
       <label><input type="radio" name="sex" value="male"><span>Men</span></label>
     </fieldset>
+
   </div>
+  <ul id="selected-lines" aria-label="Selected lines"></ul>
+    <details id="country-picker">
+      <summary id="country-count">+ Add line</summary>
+      <div class="country-panel">
+        <label for="country-search">Search countries, groups, and percentiles</label>
+        <input id="country-search" type="search" placeholder="Search…" autocomplete="off">
+        <button id="clear-countries" type="button">Clear selection</button>
+        <div id="country-list" role="group" aria-label="Available lines"></div>
+        <p id="country-empty" hidden>No matching lines.</p>
+      </div>
+    </details>
   <p id="status" role="status" aria-live="polite">Loading life-expectancy data…</p>
   <div class="chart-layout">
     <div id="chart"></div>
+    <div class="year-range" role="group" aria-label="Displayed year range">
+      <div class="range-editor">
+      <input class="year-entry" id="start-value" type="text" inputmode="numeric" maxlength="4" aria-label="Start year entry">
+      <div class="timeline" id="timeline" title="Double-click the timeline to reset the full range.">
+        <div class="timeline-track" aria-hidden="true"></div>
+        <input id="start-year" aria-label="Start year" aria-describedby="range-help" type="range" step="1" list="year-marks">
+        <input id="end-year" aria-label="End year" aria-describedby="range-help" type="range" step="1" list="year-marks">
+      </div>
+      <input class="year-entry" id="end-value" type="text" inputmode="numeric" maxlength="4" aria-label="End year entry">
+      </div>
+      <datalist id="year-marks"></datalist>
+      <span id="range-help" class="visually-hidden">Use arrow keys to adjust the year. Press Escape to reset the full range. You can also double-click the timeline to reset.</span>
+    </div>
     <aside class="chart-key" aria-label="Country lines and population key">
       <p id="country-key"></p>
-      <p>The 10th percentile is population-weighted.</p>
+      <p>Percentile lines are population-weighted.</p>
 
-      <div class="opacity-key">
-      <p><strong>Opacity ∝ population share</strong><br>Share of total population, 2023</p>
-      <ul id="opacity-samples"></ul>
-      </div>
+      <details class="opacity-key">
+        <summary><span class="info-icon" aria-hidden="true">i</span>About line opacity</summary>
+        <div class="opacity-content">
+          <p>Darker country lines represent larger shares of the total population in 2023. Opacity uses a square-root scale to keep smaller countries visible.</p>
+          <ul id="opacity-samples"></ul>
+        </div>
+      </details>
     </aside>
   </div>
   <details><summary>View highlighted values as a table</summary><div class="table-scroll" tabindex="0"><table>
@@ -76,10 +152,15 @@
   </table></div></details>
   <footer>
     <p>Source: <a id="source" href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men">HMD, UN World Population Prospects, and historical population via Our World in Data</a>.</p>
+    <details><summary>Data sources and credits</summary>
+      <ul id="data-source-credits"></ul>
+      <p>Data processing by Our World in Data; additional best-practice and population-weighted percentile calculations by The Longevity Initiative. OWID-produced material is available under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; underlying third-party data retain their respective source licences.</p>
+      <p>Tooltip positioning adapted from an earlier MIT-licensed OWID Grapher version. Its copyright and permission notice are included in <a href="headline.js">the chart source</a>.</p>
+    </details>
     <p><a href="observations.csv" download>Download observations (CSV)</a> · <a href="headline.json" download>Download chart data and provenance (JSON)</a></p>
     <details><summary>Methodology and coverage</summary>
       <p><strong>Country-line faintness:</strong> opacity reflects each location’s share of the included countries’ total population in 2023, held constant across the timeline. A square-root scale keeps small populations visible, ranging from 6% opacity to 50% at a population share of 20% or more. This visual styling uses total population for both views; percentile calculations use sex-specific population.</p>
-      <p><strong>10th percentile:</strong> the dashed line ranks countries and territories by life expectancy, then accumulates their female or male populations. The line is the first country value reaching 10% of the included population, with no interpolation. Women’s values are weighted by female population, and men’s values by male population. All sizes are included, and aggregates are excluded. Missing life expectancy is excluded and weights are renormalized over available observations. Values start in 1950. This describes country-level life expectancy, not the shortest-lived 10% of individuals, nor the average within the bottom group. Large countries can produce jumps.</p>
+      <p><strong>Percentiles:</strong> the selectable 10th, 25th, 75th, and 90th percentile lines rank countries and territories by life expectancy, then accumulate their female or male populations. Each line is the first country value reaching its selected share of the included population, with no interpolation. Women’s values are weighted by female population, and men’s values by male population. All sizes are included, and aggregates are excluded. Missing life expectancy is excluded and weights are renormalized over available observations. Values start in 1950. This describes country-level life expectancy, not percentiles of individual lifespans, nor the average within the bottom group. Large countries can produce jumps.</p>
       <p>This first version covers 1900–2023, at birth, separately for females and males. It excludes projections. Countries and territories are the export's locations with an OWID world-region assignment; regional and income aggregates are excluded from country calculations.</p>
       <p><strong>Best practice:</strong> the highest value among countries and territories with total population strictly above one million in that year. Ties retain every winning location. <strong>World life expectancy:</strong> the sex-specific World series supplied by UN WPP through OWID, used directly without averaging country values.</p>
       <p><strong>Income groups:</strong> the high- and low-income series supplied by UN WPP through OWID, used directly rather than averaging country life expectancies. Their classification vintage and membership methodology still require confirmation before publication.</p>

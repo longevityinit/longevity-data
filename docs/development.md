@@ -235,3 +235,9 @@ need confirmation before public release.
 
 Percentile weights use sex-specific population, summing non-overlapping five-year
 age groups including 100+. Best-practice eligibility still uses total population.
+
+The headline “+ Add line” picker supports countries, source-provided income groups and UN regions, and population-weighted percentiles (10, 25, 75, 90). Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
+
+Headline URL state: `?sex=male&country=DEU` shows the default reference lines plus Germany. The canonical URL uses `sex=female|male&lines=frontier,OWID_WRL,p10,DEU`; `lines=` explicitly selects no highlighted lines. Multiple country IDs can be comma-separated or repeated. URL state overrides saved selections and locale guesses. Unknown IDs are ignored and invalid sex values fall back to female. Interactions update the URL without reloading. An iframe with no state parameters always starts with women, best practice, World, and p10; it ignores local preferences and locale. Standalone views without state may use saved preferences or locale, then serialize that resolved view. These URLs reproduce display settings, not a pinned dataset version.
+
+The year-range controls serialize `start` and `end` in the URL. Bounds are clamped to available years; reversed/equal bounds reset to the full range. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range; the y-axis remains fixed for comparison.

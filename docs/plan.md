@@ -77,6 +77,9 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 
 ## Later milestones
 
+- [ ] Decide the default behavior for WordPress embeds: should parameter-free embeds show the same fixed view to everyone, or personalize using saved preferences and country detection? The current implementation uses a fixed iframe default; this is provisional. Explicit URL state should continue to reproduce the requested view.
+- [ ] Decide the placement of the country/region/percentile selector and removable selected-line entries. The current “+ Add line” control below the selected entries is provisional; review its position on desktop and mobile.
+
 - [ ] Annual changes and ten-year improvement rates, with explicit window rules.
 - [ ] Country-to-frontier gaps and selected-country comparisons.
 - [ ] Country dashboards consuming the shared indicators.
@@ -94,3 +97,9 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 - [ ] Confirm historical geographic comparability, source licences and income-group membership before publication.
 - [ ] Complete browser/mobile/accessibility review and independently verify sample values.
 - [ ] Add age 65 after reviewing the at-birth graph.
+- [ ] Revisit IP-based country suggestions: inspect the WordPress embed and hosting/CDN setup, then decide how to pass a country hint to the chart. Saved selection must take priority, followed by IP country, browser locale, and manual selection. Currently only saved selection, locale guessing, and manual selection are implemented.
+- [ ] Revisit the population-weighted 10th percentile definition: compare the current inverse weighted CDF (no interpolation) with linear interpolation between countries' cumulative-population midpoints, using sex-specific weights. Review differences in the actual series before choosing; document the chosen method and test boundaries and ties. The current calculation remains unchanged pending this decision.
+
+- [ ] Assess historical source coverage before extending the headline range to 1850; current observations begin in 1900.
+
+- [ ] Resolve the existing IHME attribution mismatch: the stored licence/citation file cites GBD 2016, while metadata identifies GBD 2023 (and the query lists YLDs despite the dataset name all_cause_deaths). Verify against the original download before use; do not infer a replacement citation.

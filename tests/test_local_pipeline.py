@@ -32,6 +32,7 @@ class LocalPipelineTests(unittest.TestCase):
             root = Path(tmp)
             shutil.copytree(ROOT / 'src/pipeline', root / 'src/pipeline', ignore=shutil.ignore_patterns('__pycache__'))
             shutil.copytree(ROOT / 'src/charts', root / 'src/charts')
+            shutil.copytree(ROOT / 'licenses', root / 'licenses')
             self.assertFalse((root / '.env').exists())
 
             def run(relative, *args):

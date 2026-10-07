@@ -16,6 +16,10 @@ from utils.publication import snapshot_manifest, write_manifest, write_json
 SEX_COLUMNS = {'female': 'Life expectancy of women', 'male': 'Life expectancy of men'}
 GROUPS = {'OWID_HIC': 'High-income countries', 'OWID_WRL': 'World life expectancy',
           'OWID_LIC': 'Low-income countries'}
+OPTIONAL_GROUPS = {'OWID_LMC': 'Lower-middle-income countries', 'OWID_UMC': 'Upper-middle-income countries',
+                   'UN_AFR': 'Africa (UN)', 'UN_ASI': 'Asia (UN)', 'UN_EUR': 'Europe (UN)',
+                   'UN_LAC': 'Latin America and the Caribbean (UN)', 'UN_NAM': 'Northern America (UN)',
+                   'UN_OCE': 'Oceania (UN)'}
 REGIONS = {'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'}
 
 
@@ -40,7 +44,7 @@ def standardise(rows):
         if region and region not in REGIONS:
             raise ValueError(f'Unknown region for {entity}: {region}')
         kind = 'country' if region else 'group'
-        if kind == 'group' and code not in GROUPS:
+        if kind == 'group' and code not in GROUPS and code not in OPTIONAL_GROUPS:
             continue
         if not code:
             raise ValueError(f'Missing location ID: {entity}')
@@ -166,7 +170,7 @@ def calculate(observations):
         winners = sorted(r['code'] for r in eligible if r['value'] == best)
         result.append(dict(base, code='frontier', series='frontier', entity='Best practice',
                            value=best, winners=winners))
-        for percentile in (10, 25):
+        for percentile in (10, 25, 75, 90):
             value = weighted_percentile(countries, percentile / 100) if year >= 1950 else None
             code = f'p{percentile}'
             result.append(dict(base, code=code, series=code,
@@ -176,8 +180,10 @@ def calculate(observations):
                                population_weight='sex_specific',
                                covered_population=sum(r['sex_population'] for r in countries) if year >= 1950 else None,
                                country_count=len(countries)))
-        for code, label in GROUPS.items():
+        for code, label in (GROUPS | OPTIONAL_GROUPS).items():
             group = next((r for r in rows if r['code'] == code), None)
+            if code in OPTIONAL_GROUPS and (group is None or group['value'] is None):
+                continue
             if year < 1950:
                 result.append(dict(base, code=code, series=code, entity=label, value=None, winners=[]))
                 continue

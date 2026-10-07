@@ -75,7 +75,10 @@ class HeadlineTests(unittest.TestCase):
         self.assertEqual(lookup['OWID_WRL', 'female']['kind'], 'summary')
         self.assertFalse(any(r['series'] == 'median' for r in result))
         self.assertEqual(lookup['OWID_HIC', 'female']['value'], 75)
-        self.assertNotIn(('UN_EUR', 'female'), lookup)
+        self.assertEqual(lookup['UN_EUR', 'female']['value'], 120)
+        self.assertEqual(lookup['UN_EUR', 'female']['kind'], 'summary')
+        self.assertEqual(lookup['p75', 'female']['value'], 80)
+        self.assertEqual(lookup['p90', 'female']['value'], 99)
 
     def test_missing_values_remain_missing_and_do_not_change_world_series(self):
         rows = standardise([source('AAA', '', 60), source('BBB', 80, 65)] + groups())
