@@ -236,8 +236,28 @@ need confirmation before public release.
 Percentile weights use sex-specific population, summing non-overlapping five-year
 age groups including 100+. Best-practice eligibility still uses total population.
 
-The headline “+ Add line” picker supports countries, source-provided income groups and UN regions, and population-weighted percentiles (10, 25, 75, 90). Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
+The headline “Show on chart” selector supports countries, source-provided UN regions, and population-weighted percentiles (10, 25, 75, 90). Income groups are hidden from the picker; existing URLs selecting them remain supported. Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
 
-Headline URL state: `?sex=male&country=DEU` shows the default reference lines plus Germany. The canonical URL uses `sex=female|male&lines=frontier,OWID_WRL,p10,DEU`; `lines=` explicitly selects no highlighted lines. Multiple country IDs can be comma-separated or repeated. URL state overrides saved selections and locale guesses. Unknown IDs are ignored and invalid sex values fall back to female. Interactions update the URL without reloading. An iframe with no state parameters always starts with women, best practice, World, and p10; it ignores local preferences and locale. Standalone views without state may use saved preferences or locale, then serialize that resolved view. These URLs reproduce display settings, not a pinned dataset version.
+Headline URL state uses `?show=best,world,DEU,p25,wb-high&sex=f&start=1950&end=2023`. Sex is `f` or `m`. Best practice and World are always included, even for `show=`. Countries retain their codes (e.g. `DEU`); percentiles retain `p10`, `p25`, `p75`, `p90`. Aliases map to internal data IDs:
+
+| URL alias | Data ID |
+| --- | --- |
+| `best` | `frontier` |
+| `world` | `OWID_WRL` |
+| `wb-high` | `OWID_HIC` |
+| `wb-upper-middle` | `OWID_UMC` |
+| `wb-lower-middle` | `OWID_LMC` |
+| `wb-low` | `OWID_LIC` |
+| `un-africa` | `UN_AFR` |
+| `un-asia` | `UN_ASI` |
+| `un-europe` | `UN_EUR` |
+| `un-latin-america-caribbean` | `UN_LAC` |
+| `un-northern-america` | `UN_NAM` |
+| `un-oceania` | `UN_OCE` |
+
+Legacy `lines`, internal IDs, `sex=female|male`, and `country=DEU` links remain supported. `show` takes precedence over `lines`, which takes precedence over `country`. Selections can be comma-separated or repeated. URLs are rewritten to the canonical format using `replaceState`, without reloading or adding history entries. URL state overrides saved selections and locale guesses. Unknown IDs are ignored and invalid sex values fall back to female. An iframe without state parameters starts with women, best practice, World, and p10; it ignores local preferences and locale. Standalone views without state may use saved selections or locale, then serialize that resolved view. These URLs reproduce display settings, not a pinned dataset version.
 
 The year-range controls serialize `start` and `end` in the URL. Bounds are clamped to available years; reversed/equal bounds reset to the full range. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range; the y-axis remains fixed for comparison.
+
+
+Headline line identification: endpoint labels prioritize Best practice, World, selected percentiles, and a hovered or keyboard-focused line. Remaining labels are chosen by their distance from the pointer at the hovered year, using the same principle as the hover popup. Lines without data for that year are omitted. Desktop shows up to ten endpoint labels; charts narrower than 600px show up to four (or enough to retain all selected reference lines). Without a pointer, comparisons are ranked by endpoint value. Labels remain ordered by endpoint height and are spaced to avoid overlap. There is no separate line legend. The inline “Show on chart” panel manages selections: search, category filters, Selected filter, and a clear-comparisons action. At viewport widths of 1100px and above it is a sticky sidebar beside the plot; on narrower screens it sits above the plot. On mobile it starts collapsed. Selections update the chart and URL immediately.

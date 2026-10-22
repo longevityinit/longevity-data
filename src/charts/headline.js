@@ -35,9 +35,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       .sort((a, b) => a[1].localeCompare(b[1]));
     const optionCodes = new Set(options.map(([code]) => code));
     const countryCodes = new Set(countries.map(([code]) => code));
+    const urlAliases = {
+      best: 'frontier', world: 'OWID_WRL',
+      'wb-high': 'OWID_HIC', 'wb-upper-middle': 'OWID_UMC',
+      'wb-lower-middle': 'OWID_LMC', 'wb-low': 'OWID_LIC',
+      'un-africa': 'UN_AFR', 'un-asia': 'UN_ASI', 'un-europe': 'UN_EUR',
+      'un-latin-america-caribbean': 'UN_LAC', 'un-northern-america': 'UN_NAM',
+      'un-oceania': 'UN_OCE',
+    };
+    const urlNames = new Map(Object.entries(urlAliases).map(([alias, code]) => [code, alias]));
     const embedded = window.self !== window.top;
     const params = new URLSearchParams(location.search);
-    const hasUrlState = ['sex', 'lines', 'country', 'start', 'end'].some(key => params.has(key));
+    const hasUrlState = ['sex', 'show', 'lines', 'country', 'start', 'end'].some(key => params.has(key));
     let startYear = data.start_year, endYear = data.end_year;
     function readYears(query) {
       const parse = (key, fallback) => /^\d{4}$/.test(query.get(key) || '') ? Math.max(data.start_year, Math.min(data.end_year, Number(query.get(key)))) : fallback;
@@ -48,9 +57,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     function readUrlState() {
       const query = new URLSearchParams(location.search);
       readYears(query);
-      const sex = query.get('sex') === 'male' ? 'male' : 'female';
+      const sex = ['m', 'male'].includes(query.get('sex')) ? 'male' : 'female';
       document.querySelector(`input[name="sex"][value="${sex}"]`).checked = true;
-      if (query.has('lines')) return query.getAll('lines').flatMap(value => value.split(',')).filter(code => optionCodes.has(code));
+      const selectionKey = query.has('show') ? 'show' : 'lines';
+      if (query.has(selectionKey)) return query.getAll(selectionKey)
+        .flatMap(value => value.split(','))
+        .map(code => Object.hasOwn(urlAliases, code) ? urlAliases[code] : code)
+        .filter(code => optionCodes.has(code));
       return [...referenceSeries.map(s => s.id), ...query.getAll('country').flatMap(value => value.split(',')).filter(code => countryCodes.has(code))];
     }
     let saved = null;
@@ -83,30 +96,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         }
       } catch (_) { /* Manual selection remains available. */ }
     }
+    const baselineLines = new Set(['frontier', 'OWID_WRL']);
     const countryList = document.getElementById('country-list');
     const countrySearch = document.getElementById('country-search');
+    if (window.matchMedia('(max-width: 600px)').matches) document.getElementById('country-picker').open = false;
+    let pickerFilter = 'all';
     function updateCountries() {
-      const entries = document.getElementById('selected-lines');
-      entries.replaceChildren();
-      for (const code of selectedCountries) {
-        const li = document.createElement('li');
-        const swatch = document.createElement('span'); swatch.className = 'selected-swatch'; swatch.style.background = lineStyle(code).color;
-        const text = document.createElement('span'); text.textContent = names.get(code);
-        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
-        remove.setAttribute('aria-label', `Remove ${names.get(code)}`);
-        remove.addEventListener('click', () => { selectedCountries.delete(code); saveCountries(); document.getElementById('country-count').focus(); });
-        li.append(swatch, text, remove); entries.append(li);
-      }
+      for (const code of baselineLines) selectedCountries.add(code);
+      const seenSections = new Set();
       for (const label of countryList.children) {
-        label.hidden = !label.textContent.toLocaleLowerCase().includes(countrySearch.value.trim().toLocaleLowerCase());
+        const matchesFilter = pickerFilter === 'all'
+          || (pickerFilter === 'selected' && selectedCountries.has(label.dataset.code))
+          || label.dataset.category === pickerFilter;
+        label.hidden = !matchesFilter || !label.textContent.toLocaleLowerCase().includes(countrySearch.value.trim().toLocaleLowerCase());
         label.querySelector('input').checked = selectedCountries.has(label.dataset.code);
+        delete label.dataset.section;
+        if (!label.hidden && !seenSections.has(label.dataset.group)) {
+          label.dataset.section = label.dataset.group;
+          seenSections.add(label.dataset.group);
+        }
       }
+      const selectionCount = [...selectedCountries].filter(code => !baselineLines.has(code)).length;
+      document.getElementById('selection-count').textContent = `${selectionCount} comparisons selected`;
+      document.getElementById('clear-countries').disabled = selectionCount === 0;
       document.getElementById('country-empty').hidden = [...countryList.children].some(label => !label.hidden);
     }
     function syncUrl() {
       const url = new URL(location.href);
-      url.searchParams.set('sex', document.querySelector('input[name="sex"]:checked').value);
-      url.searchParams.set('lines', [...selectedCountries].join(','));
+      for (const code of baselineLines) selectedCountries.add(code);
+      url.searchParams.set('sex', document.querySelector('input[name="sex"]:checked').value === 'male' ? 'm' : 'f');
+      url.searchParams.set('show', [...selectedCountries].map(code => urlNames.get(code) || code).join(','));
+      url.searchParams.delete('lines');
       url.searchParams.delete('country');
       url.searchParams.set('start', startYear);
       url.searchParams.set('end', endYear);
@@ -118,24 +138,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       updateCountries();
       render();
     }
-    for (const [code, name] of options) {
+    // Sort the picker separately so existing series colors remain stable.
+    const incomeGroups = new Set(['OWID_HIC', 'OWID_UMC', 'OWID_LMC', 'OWID_LIC']);
+    const pickerRank = code => /^p\d+$/.test(code) ? 0 : countryCodes.has(code) ? 2 : 1;
+    const pickerOptions = [...options].sort((a, b) => pickerRank(a[0]) - pickerRank(b[0])
+      || (pickerRank(a[0]) === 0 ? Number(a[0].slice(1)) - Number(b[0].slice(1)) : a[1].localeCompare(b[1])));
+    for (const [code, name] of pickerOptions) {
+      if (baselineLines.has(code) || incomeGroups.has(code)) continue;
       const label = document.createElement('label'); label.dataset.code = code;
       const input = document.createElement('input'); input.type = 'checkbox'; input.value = code;
+      input.setAttribute('aria-label', name.replace(' (population-weighted)', ''));
       input.addEventListener('change', () => {
         if (input.checked) selectedCountries.add(code); else selectedCountries.delete(code);
         saveCountries();
       });
       const category = countryCodes.has(code) ? 'Country' : /^p\d+$/.test(code) ? 'Percentile' : code === 'frontier' ? 'Reference' : 'Group';
-      label.append(input, document.createTextNode(`${name} · ${category}`)); countryList.append(label);
+      label.dataset.category = category === 'Percentile' ? 'percentiles' : category === 'Country' ? 'countries' : 'regions';
+      label.dataset.group = category === 'Percentile' ? 'Percentiles' : category === 'Country' ? 'Countries' : 'Regions';
+      const optionName = document.createElement('span'); optionName.className = 'option-name'; optionName.textContent = name.replace(' (population-weighted)', '');
+      label.append(input, optionName); countryList.append(label);
     }
     countrySearch.addEventListener('input', updateCountries);
-    document.getElementById('clear-countries').addEventListener('click', () => { selectedCountries.clear(); saveCountries(); });
-    document.getElementById('country-picker').addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.currentTarget.open = false; document.getElementById('country-count').focus(); }
+    document.querySelectorAll('[data-picker-filter]').forEach(button => {
+      button.addEventListener('click', () => {
+        pickerFilter = button.dataset.pickerFilter;
+        document.querySelectorAll('[data-picker-filter]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+        updateCountries(); countryList.scrollTop = 0;
+      });
+    });
+    document.getElementById('clear-countries').addEventListener('click', () => {
+      selectedCountries.clear();
+      selectedCountries.add('frontier');
+      selectedCountries.add('OWID_WRL');
+      saveCountries();
     });
     function lineStyle(code) {
       const reference = referenceSeries.find(item => item.id === code);
-      return reference || {id: code, name: names.get(code), color: d3.interpolateRainbow((.42 + options.findIndex(([id]) => id === code) * .618034) % 1), dash: /^p\d+$/.test(code) ? '6 3' : null};
+      if (reference) return reference;
+      const position = (.42 + options.findIndex(([id]) => id === code) * .618034) % 1;
+      const color = d3.hsl(d3.interpolateRainbow(position));
+      // Keep the original hue variety, darkening only pale yellow/green shades.
+      if (color.h >= 55 && color.h <= 115) color.l = Math.min(color.l, .38);
+      return {id: code, name: names.get(code), color: color.formatHex(), dash: /^p\d+$/.test(code) ? '6 3' : null};
     }
     updateCountries();
     const startControl = document.getElementById('start-year');
@@ -220,7 +264,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       });
     }
     const format = value => value == null ? '—' : value.toFixed(2);
-    const countryLegendLabel = d3.select('#country-key');
+    const countryCountSubtitle = d3.select('#country-count-subtitle');
     document.getElementById('source').textContent = `${data.source}, via Our World in Data`;
     const credits = document.getElementById('data-source-credits');
     for (const source of data.sources || []) {
@@ -253,7 +297,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       const rows = data.rows.filter(r => r.sex === sex);
       if (!rows.some(r => r.value != null)) {
         status.hidden = false;
-        countryLegendLabel.text('One line per country or territory (0)');
+        countryCountSubtitle.text('0');
         container.replaceChildren();
         document.getElementById('values').replaceChildren();
         status.textContent = 'No observations available for this selection.';
@@ -273,8 +317,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         sample.append('b').style('font-weight', 'normal').text(`${percent}%`);
       }
       const summary = new Map(series.map(s => [s.id, new Map((grouped.get(s.id) || []).map(r => [r.year, r]))]));
-      const width = Math.max(280, container.clientWidth), height = Math.max(width < 600 ? 350 : 480, series.length * 42 + 80);
-      const margin = {left: 64, right: width < 600 ? 112 : 175, top: 24, bottom: 35};
+      const width = Math.max(280, container.clientWidth), height = width < 600 ? 350 : 480;
+      const mobile = width < 600;
+      const margin = {left: 64, right: mobile ? 128 : 175, top: 24, bottom: 35};
+      const rangeEditor = document.querySelector('.range-editor');
+      const displayScale = container.clientWidth / width;
+      rangeEditor.style.setProperty('--plot-left', `${margin.left * displayScale}px`);
+      rangeEditor.style.setProperty('--plot-right', `${margin.right * displayScale}px`);
       const x = d3.scaleLinear().domain([startYear, endYear]).range([margin.left, width - margin.right]);
       const y = d3.scaleLinear().domain([0, Math.ceil(d3.max(data.rows, r => r.value) / 10) * 10]).range([height - margin.bottom, margin.top]);
       container.replaceChildren();
@@ -286,7 +335,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
           .tickFormat(value => value === 0 ? '' : d3.format('d')(value))
           .tickSize(-(width - margin.left - margin.right)))
         .call(g => g.select('.domain').remove())
-        .call(g => g.selectAll('.tick line').attr('stroke', '#e7ebee'));
+        .call(g => g.selectAll('.tick line').attr('stroke', '#edf0f2').attr('stroke-width', 1));
       // Leave at least 40px between four-digit year labels, using whole decades.
       const plotWidth = width - margin.left - margin.right;
       const minimumStep = (endYear - startYear) * 40 / plotWidth;
@@ -324,84 +373,163 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       for (const item of series) {
         svg.append('path').attr('class', 'summary-line').attr('data-series', item.id).datum(points(grouped.get(item.id) || [])).attr('d', line)
           .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', 2.7).attr('stroke-dasharray', item.dash || null)
+          .on('pointerenter', event => { if (event.pointerType !== 'touch') { hoveredSeries = item.id; updateHighlight(); } })
+          .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
           .append('title').text(item.name);
       }
-      // Separate endpoint labels vertically while preserving their value order.
-      const labels = series.flatMap(item => {
-        const last = (grouped.get(item.id) || []).filter(r => r.value != null && r.year >= startYear && r.year <= endYear).sort((a, b) => a.year - b.year).at(-1);
-        return last ? [{...item, last, labelY: y(last.value)}] : [];
-      }).sort((a, b) => a.labelY - b.labelY);
-      const labelGap = width < 600 ? 32 : 25;
-      labels.forEach((item, i) => {
-        item.labelY = Math.max(item.labelY, i ? labels[i - 1].labelY + labelGap : margin.top);
-      });
-      if (labels.length) {
-        const overflow = Math.max(0, labels.at(-1).labelY - (height - margin.bottom - 12));
-        labels.forEach(item => { item.labelY -= overflow; });
-      }
-      const labelX = width - margin.right + 18;
-      for (const item of labels) {
-        svg.append('path').attr('class', 'label-connector').attr('data-series', item.id).attr('d', `M${x(item.last.year)},${y(item.last.value)}L${labelX - 5},${item.labelY}`)
-          .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', 1).attr('stroke-opacity', .65);
-        const button = svg.append('g').attr('class', 'line-label').attr('data-series', item.id)
-          .attr('role', 'group').attr('tabindex', 0).attr('aria-label', item.name)
-          .on('pointerenter', () => { hoveredSeries = item.id; updateHighlight(); })
-          .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
-          .on('focus', function () {
-            focusedSeries = this.matches(':focus-visible') ? item.id : null;
-            updateHighlight();
-          })
-          .on('blur', () => { focusedSeries = null; updateHighlight(); });
-        button.append('rect').attr('x', labelX - 4).attr('y', item.labelY - labelGap / 2)
-          .attr('width', margin.right - 16).attr('height', labelGap).attr('fill', 'transparent');
-        const text = button.append('text').attr('x', labelX).attr('y', item.labelY)
-          .attr('fill', item.color).attr('font-size', width < 600 ? 10 : 12).attr('font-weight', 400)
-          .attr('dominant-baseline', 'middle');
+      const endpointCandidates = series.flatMap(item => {
+        const last = (grouped.get(item.id) || []).filter(r => r.value != null && r.year >= startYear && r.year <= endYear)
+          .sort((a, b) => a.year - b.year).at(-1);
+        if (!last) return [];
         const words = item.name.replace(' (population-weighted)', '').split(' ');
         const lines = [];
         for (const word of words) {
-          if (!lines.length || (lines.at(-1) + ' ' + word).length > (width < 600 ? 16 : 23)) lines.push(word);
+          if (!lines.length || (lines.at(-1) + ' ' + word).length > (mobile ? 16 : 23)) lines.push(word);
           else lines[lines.length - 1] += ' ' + word;
         }
-        lines.forEach((line, i) => text.append('tspan').attr('x', labelX)
-          .attr('dy', i ? '1.1em' : `${-(lines.length - 1) * .55}em`).text(line));
-        text.append('title').text(`${item.name}: ${format(item.last.value)} (${item.last.year})`);
+        return [{...item, last, lines, anchorY: y(last.value), labelHeight: Math.max(18, lines.length * 14)}];
+      });
+      const endpointLayer = svg.append('g');
+      let labelPointer = null;
+      const isReference = item => baselineLines.has(item.id) || /^p\d+$/.test(item.id);
+      function visibleEndpointLabels(active) {
+        const available = endpointCandidates.filter(item => !labelPointer
+          || summary.get(item.id).get(labelPointer.year)?.value != null || item.id === active);
+        const priority = item => isReference(item) || item.id === active;
+        const distance = item => labelPointer
+          ? Math.abs(y(summary.get(item.id).get(labelPointer.year)?.value ?? item.last.value) - labelPointer.y)
+          : -item.last.value;
+        const references = available.filter(priority);
+        const nearby = available.filter(item => !priority(item)).sort((a, b) => distance(a) - distance(b));
+        const limit = Math.max(mobile ? 4 : 10, references.length);
+        const chosen = [...references, ...nearby.slice(0, Math.max(0, limit - references.length))]
+          .map(item => ({...item})).sort((a, b) => a.anchorY - b.anchorY);
+        let bottom = margin.top;
+        for (const item of chosen) {
+          item.labelY = Math.max(item.anchorY, bottom + item.labelHeight / 2);
+          bottom = item.labelY + item.labelHeight / 2 + 6;
+        }
+        let top = height - margin.bottom;
+        for (const item of [...chosen].reverse()) {
+          item.labelY = Math.min(item.labelY, top - item.labelHeight / 2);
+          top = item.labelY - item.labelHeight / 2 - 6;
+        }
+        return chosen;
+      }
+      function drawEndpointLabels(active) {
+        const labelX = width - margin.right + 18;
+        const labels = endpointLayer.selectAll('.line-label').data(visibleEndpointLabels(active), item => item.id)
+          .join(enter => {
+            const group = enter.append('g').attr('class', 'line-label').attr('tabindex', 0).attr('role', 'group');
+            group.append('path').attr('class', 'label-connector').attr('fill', 'none').attr('stroke-width', 1).attr('stroke-opacity', .5);
+            group.append('rect').attr('fill', 'transparent');
+            group.append('text').attr('font-size', 12).attr('font-weight', 400).attr('dominant-baseline', 'middle');
+            group.on('pointerenter', (event, item) => { if (event.pointerType !== 'touch') { hoveredSeries = item.id; updateHighlight(); } })
+              .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
+              .on('focus', function (event, item) { focusedSeries = this.matches(':focus-visible') ? item.id : null; updateHighlight(); })
+              .on('blur', () => { focusedSeries = null; updateHighlight(); });
+            return group;
+          });
+        labels.attr('data-series', item => item.id).attr('aria-label', item => item.name);
+        labels.select('path').attr('data-series', item => item.id).attr('stroke', item => item.color)
+          .attr('d', item => `M${x(item.last.year)},${y(item.last.value)}L${labelX - 5},${item.labelY}`);
+        labels.select('rect').attr('x', labelX - 4).attr('y', item => item.labelY - item.labelHeight / 2)
+          .attr('width', margin.right - 16).attr('height', item => item.labelHeight);
+        labels.select('text').attr('x', labelX).attr('y', item => item.labelY).attr('fill', item => item.color)
+          .each(function (item) {
+            const text = d3.select(this); text.selectAll('*').remove();
+            item.lines.forEach((line, i) => text.append('tspan').attr('x', labelX)
+              .attr('dy', i ? '1.1em' : `${-(item.lines.length - 1) * .55}em`).text(line));
+            text.append('title').text(`${item.name}: ${format(item.last.value)} (${item.last.year})`);
+          });
       }
       function updateHighlight() {
         const selectedSeries = hoveredSeries || focusedSeries;
+        drawEndpointLabels(selectedSeries);
         svg.selectAll('.country-line').attr('opacity', selectedSeries ? .15 : 1);
-        svg.selectAll('.summary-line, .label-connector').attr('opacity', function () {
+        svg.selectAll('.summary-line, .line-label').attr('opacity', function () {
           return !selectedSeries || this.getAttribute('data-series') === selectedSeries ? 1 : .15;
         });
         svg.selectAll('.summary-line').attr('stroke-width', function () {
           return this.getAttribute('data-series') === selectedSeries ? 4 : 2.7;
         });
+
       }
       updateHighlight();
       const tooltip = d3.select(container).append('div').attr('id', 'tooltip').attr('hidden', true);
       const guide = svg.append('line').attr('y1', margin.top).attr('y2', height - margin.bottom)
         .attr('stroke', '#536372').attr('stroke-dasharray', '3 3').attr('visibility', 'hidden');
-      svg.on('pointermove', event => {
-        const [px, py] = d3.pointer(event, svg.node());
+      let pinned = false;
+      let lastHover = [margin.left, margin.top];
+      const popupLimit = Math.min(320, height - margin.top - margin.bottom, window.innerHeight * .5);
+      tooltip.style('--tooltip-limit', `${popupLimit}px`);
+      function closeTooltip() {
+        pinned = false;
+        tooltip.attr('hidden', true).classed('is-pinned', false);
+        guide.attr('visibility', 'hidden');
+        labelPointer = null;
+        drawEndpointLabels(hoveredSeries || focusedSeries);
+      }
+      function showTooltip(event, pin = false) {
+        if (pinned && !pin) return;
+        const [px, py] = event ? d3.pointer(event, svg.node()) : lastHover;
         if (px > width - margin.right || px < margin.left || py < margin.top || py > height - margin.bottom) {
-          tooltip.attr('hidden', true); guide.attr('visibility', 'hidden'); return;
+          if (!pinned) closeTooltip();
+          return;
         }
+        lastHover = [px, py];
+        pinned = pin;
         const year = Math.max(startYear, Math.min(endYear, Math.round(x.invert(px))));
         guide.attr('x1', x(year)).attr('x2', x(year)).attr('visibility', 'visible');
-        tooltip.attr('hidden', null);
+        labelPointer = {year, y: py};
+        drawEndpointLabels(hoveredSeries || focusedSeries);
+        tooltip.attr('hidden', null).classed('is-pinned', pin).attr('role', pin ? 'dialog' : 'tooltip')
+          .attr('aria-label', `Life expectancy in ${year}`);
         tooltip.selectAll('*').remove();
-        tooltip.append('div').attr('class', 'tooltip-heading').text(year);
+        const heading = tooltip.append('div').attr('class', 'tooltip-heading');
+        heading.append('span').text(year);
+        if (pin) heading.append('button').attr('type', 'button').attr('aria-label', 'Close year values')
+          .text('×').on('click', () => { closeTooltip(); svg.node().focus({preventScroll: true}); });
+        const contents = tooltip.append('div').attr('class', 'tooltip-contents');
         const entries = series.map(item => ({...item, row: summary.get(item.id).get(year)}))
           .sort((a, b) => (b.row?.value ?? -Infinity) - (a.row?.value ?? -Infinity));
-        for (const item of entries) {
-          const entry = tooltip.append('div').attr('class', 'tooltip-row');
-          entry.append('span').attr('class', 'tooltip-swatch').style('background', item.color);
-          const label = entry.append('span').attr('class', 'tooltip-name')
-            .text(item.name.replace(' (population-weighted)', ''));
-          if (item.row?.winners?.length) label.append('small').text(item.row.winners.map(id => names.get(id) || id).join(', '));
-          entry.append('strong').text(item.row?.value == null ? '—' : `${item.row.value.toFixed(1)} years`);
+        function addRows(items) {
+          contents.selectAll('*').remove();
+          for (const item of items) {
+            const entry = contents.append('div').attr('class', 'tooltip-row');
+            entry.append('span').attr('class', 'tooltip-swatch').style('background', item.color);
+            const label = entry.append('span').attr('class', 'tooltip-name')
+              .text(item.name.replace(' (population-weighted)', ''));
+            if (item.row?.winners?.length) label.append('small').text(item.row.winners.map(id => names.get(id) || id).join(', '));
+            entry.append('strong').text(item.row?.value == null ? 'No data' : `${item.row.value.toFixed(1)} years`);
+          }
         }
-        const [mouseX, mouseY] = d3.pointer(event, container);
+        const availableEntries = entries.filter(item => item.row?.value != null);
+        let visibleEntries = availableEntries;
+        if (!pin && availableEntries.length > 10) {
+          const references = availableEntries.filter(isReference);
+          const nearby = availableEntries.filter(item => !isReference(item)).sort((a, b) => {
+            const distance = item => item.row?.value == null ? Infinity : Math.abs(y(item.row.value) - py);
+            return distance(a) - distance(b);
+          });
+          const visibleIds = new Set([...references, ...nearby.slice(0, Math.max(0, 10 - references.length))]
+            .map(item => item.id));
+          // Preserve value order after choosing nearby lines and mandatory references.
+          visibleEntries = availableEntries.filter(item => visibleIds.has(item.id));
+        }
+        addRows(visibleEntries);
+        if (visibleEntries.length < availableEntries.length) {
+          tooltip.append('div').attr('class', 'tooltip-hint')
+            .text(`+${availableEntries.length - visibleEntries.length} more · Click or tap for all selected values`);
+        }
+        if (pin) {
+          tooltip.style('left', `${Math.max(0, width - margin.right - Math.min(300, width))}px`)
+            .style('top', `${margin.top}px`);
+          contents.attr('tabindex', 0).attr('role', 'region').attr('aria-label', 'Scrollable selected values');
+          heading.select('button').node().focus({preventScroll: true});
+          return;
+        }
+        const [mouseX, mouseY] = event ? d3.pointer(event, container) : lastHover;
         const box = tooltip.node().getBoundingClientRect();
         let left = mouseX - box.width - 20;
         if (left < 0) left = mouseX + 20;
@@ -409,7 +537,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if (top + box.height > container.clientHeight) top = mouseY - box.height - 16;
         tooltip.style('left', `${Math.max(0, Math.min(container.clientWidth - box.width, left))}px`)
           .style('top', `${Math.max(0, Math.min(container.clientHeight - box.height, top))}px`);
-      }).on('pointerleave', () => { tooltip.attr('hidden', true); guide.attr('visibility', 'hidden'); });
+
+      }
+      svg.attr('tabindex', 0).on('pointermove', event => showTooltip(event))
+        .on('pointerleave', () => { if (!pinned) closeTooltip(); })
+        .on('click', event => showTooltip(event, true))
+        .on('keydown', event => {
+          if (event.key === 'Enter') { event.preventDefault(); showTooltip(null, true); }
+        });
+      d3.select(window).on('keydown.headlineTooltip', event => {
+        if (event.key === 'Escape' && pinned) {
+          closeTooltip(); svg.node().focus({preventScroll: true});
+        }
+      });
       const body = document.getElementById('values');
       body.replaceChildren();
       for (const year of [...years].reverse()) {
@@ -424,7 +564,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         body.append(tr);
       }
       document.getElementById('table-caption').textContent = `${sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, in years`;
-      countryLegendLabel.text(`One line per country or territory (${new Set(rows.filter(r => r.kind === 'country').map(r => r.code)).size})`);
+      countryCountSubtitle.text(new Set(rows.filter(r => r.kind === 'country').map(r => r.code)).size);
       status.hidden = true;
     }
     document.querySelectorAll('input[name="sex"]').forEach(input => input.addEventListener('change', () => { syncUrl(); render(); }));
