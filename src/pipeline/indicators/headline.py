@@ -14,10 +14,8 @@ sys.path.insert(0, str(ROOT / 'src/pipeline'))
 from utils.publication import snapshot_manifest, write_manifest, write_json
 
 SEX_COLUMNS = {'female': 'Life expectancy of women', 'male': 'Life expectancy of men'}
-GROUPS = {'OWID_HIC': 'High-income countries', 'OWID_WRL': 'World life expectancy',
-          'OWID_LIC': 'Low-income countries'}
-OPTIONAL_GROUPS = {'OWID_LMC': 'Lower-middle-income countries', 'OWID_UMC': 'Upper-middle-income countries',
-                   'UN_AFR': 'Africa (UN)', 'UN_ASI': 'Asia (UN)', 'UN_EUR': 'Europe (UN)',
+GROUPS = {'OWID_WRL': 'World life expectancy'}
+OPTIONAL_GROUPS = {'UN_AFR': 'Africa (UN)', 'UN_ASI': 'Asia (UN)', 'UN_EUR': 'Europe (UN)',
                    'UN_LAC': 'Latin America and the Caribbean (UN)', 'UN_NAM': 'Northern America (UN)',
                    'UN_OCE': 'Oceania (UN)'}
 REGIONS = {'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'}

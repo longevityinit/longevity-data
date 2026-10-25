@@ -37,8 +37,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     const countryCodes = new Set(countries.map(([code]) => code));
     const urlAliases = {
       best: 'frontier', world: 'OWID_WRL',
-      'wb-high': 'OWID_HIC', 'wb-upper-middle': 'OWID_UMC',
-      'wb-lower-middle': 'OWID_LMC', 'wb-low': 'OWID_LIC',
       'un-africa': 'UN_AFR', 'un-asia': 'UN_ASI', 'un-europe': 'UN_EUR',
       'un-latin-america-caribbean': 'UN_LAC', 'un-northern-america': 'UN_NAM',
       'un-oceania': 'UN_OCE',
@@ -146,12 +144,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       render();
     }
     // Sort the picker separately so existing series colors remain stable.
-    const incomeGroups = new Set(['OWID_HIC', 'OWID_UMC', 'OWID_LMC', 'OWID_LIC']);
     const pickerRank = code => /^p\d+$/.test(code) ? 0 : countryCodes.has(code) ? 2 : 1;
     const pickerOptions = [...options].sort((a, b) => pickerRank(a[0]) - pickerRank(b[0])
       || (pickerRank(a[0]) === 0 ? Number(a[0].slice(1)) - Number(b[0].slice(1)) : a[1].localeCompare(b[1])));
     for (const [code, name] of pickerOptions) {
-      if (baselineLines.has(code) || incomeGroups.has(code)) continue;
+      if (baselineLines.has(code)) continue;
       const label = document.createElement('label'); label.dataset.code = code;
       const input = document.createElement('input'); input.type = 'checkbox'; input.value = code;
       input.setAttribute('aria-label', name.replace(' (population-weighted)', ''));

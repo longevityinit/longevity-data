@@ -20,8 +20,7 @@ def source(code, female, male, population=2_000_000, year=2000, region='Europe')
 
 
 def groups():
-    return [source('OWID_HIC', 75, 70, region=''), source('OWID_LIC', 55, 50, region=''),
-            source('OWID_WRL', 72, 67, region='')]
+    return [source('OWID_WRL', 72, 67, region='')]
 
 
 class HeadlineTests(unittest.TestCase):
@@ -65,7 +64,8 @@ class HeadlineTests(unittest.TestCase):
     def test_threshold_ties_sex_isolation_and_aggregate_exclusion(self):
         rows = [source('AAA', 80, 60), source('BBB', 80, 65),
                 source('CCC', 99, 99, 1_000_000), source('DDD', 70, 70, 1_000_001),
-                source('UN_EUR', 120, 120, region='')] + groups()
+                source('UN_EUR', 120, 120, region=''),
+                source('OWID_HIC', 99, 99, region=''), source('OWID_LIC', 20, 20, region='')] + groups()
         result = calculate(standardise(rows))
         lookup = {(r['series'], r['sex']): r for r in result}
         self.assertEqual(lookup['frontier', 'female']['winners'], ['AAA', 'BBB'])
@@ -74,7 +74,7 @@ class HeadlineTests(unittest.TestCase):
         self.assertEqual(lookup['OWID_WRL', 'male']['value'], 67)
         self.assertEqual(lookup['OWID_WRL', 'female']['kind'], 'summary')
         self.assertFalse(any(r['series'] == 'median' for r in result))
-        self.assertEqual(lookup['OWID_HIC', 'female']['value'], 75)
+        self.assertFalse(any(r['series'] in ('OWID_HIC', 'OWID_LIC', 'OWID_LMC', 'OWID_UMC') for r in result))
         self.assertEqual(lookup['UN_EUR', 'female']['value'], 120)
         self.assertEqual(lookup['UN_EUR', 'female']['kind'], 'summary')
         self.assertEqual(lookup['p75', 'female']['value'], 80)
@@ -117,7 +117,7 @@ class HeadlineTests(unittest.TestCase):
             with self.assertRaises(ValueError): standardise(rows)
         with self.assertRaises(ValueError): calculate(standardise([row]))
 
-    def test_history_joins_by_code_year_and_has_no_income_values(self):
+    def test_history_joins_by_code_year_and_has_no_world_values(self):
         current = standardise([source('AAA', 80, 70)])
         history = [{'Code': 'AAA', 'Entity': 'Old name', 'Year': '1900', 'Female': '50', 'Male': '45'}]
         population = [{'Code': 'AAA', 'Year': '1900', 'Population': '2000000'}]

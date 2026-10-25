@@ -215,13 +215,12 @@ All five snapshot dependencies are pinned in the publication manifest.
 
 The first version covers 1751–2023 at birth, beginning with Sweden; the available range is derived from the stored observations. Before 1950 it includes only historical
 locations that match the modern country/territory universe. Coverage is sparse;
-the World series and income groups start in 1950 to avoid presenting the
+the World series starts in 1950 to avoid presenting the
 early sample as globally representative. Recorded population must
 be strictly above one million for frontier eligibility; all tied winners are
 retained. Best practice starts in 1850 and requires at least two eligible locations with observations for that year and sex; otherwise it remains blank. Country observations with missing historical population remain available individually but are excluded from frontier eligibility. There is no population interpolation; most years before 1800 lack a matching population observation. The generated JSON records the number of missing historical country-years. Only selected series are plotted. Missing values
 are not interpolated. Historical population is based on current borders; its
 compatibility with historical mortality territories needs review before publishing.
-The income classification vintage also remains a publication review item.
 
 The generated JSON records input snapshot versions, source descriptions, and
 Git revision/dirty status. A dirty revision is not a reproducible code release;
@@ -230,24 +229,20 @@ observations; JSON includes calculated series and frontier winners.
 
 Use `output/charts/headline-life-expectancy/publish.json` with the existing dry-run
 and metadata preparation commands. This first version is for local review;
-source licences, income membership and historical geographic alignment still
+source licences and historical geographic alignment still
 need confirmation before public release.
 
 Percentile weights use sex-specific population, summing non-overlapping five-year
 age groups including 100+. Best-practice eligibility still uses total population.
 
-The headline “Show on chart” selector supports countries, source-provided UN regions, and population-weighted percentiles (10, 25, 75, 90). Income groups are hidden from the picker; existing URLs selecting them remain supported. Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
+The headline “Show on chart” selector supports countries, source-provided UN regions, and population-weighted percentiles (10, 25, 75, 90). Income groups are excluded from the headline outputs. Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
 
-Headline URL state uses `?show=best,world,DEU,p25,wb-high&sex=f&start=1950&end=2023`. Sex is `f` or `m`. Best practice and World are always included, even for `show=`. Countries retain their codes (e.g. `DEU`); percentiles retain `p10`, `p25`, `p75`, `p90`. Aliases map to internal data IDs:
+Headline URL state uses `?show=best,world,DEU,p25&sex=f&start=1950&end=2023`. Sex is `f` or `m`. Best practice and World are always included, even for `show=`. Countries retain their codes (e.g. `DEU`); percentiles retain `p10`, `p25`, `p75`, `p90`. Aliases map to internal data IDs:
 
 | URL alias | Data ID |
 | --- | --- |
 | `best` | `frontier` |
 | `world` | `OWID_WRL` |
-| `wb-high` | `OWID_HIC` |
-| `wb-upper-middle` | `OWID_UMC` |
-| `wb-lower-middle` | `OWID_LMC` |
-| `wb-low` | `OWID_LIC` |
 | `un-africa` | `UN_AFR` |
 | `un-asia` | `UN_ASI` |
 | `un-europe` | `UN_EUR` |
