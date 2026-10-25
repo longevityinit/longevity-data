@@ -28,6 +28,8 @@ def download(dataset, slug):
     target = directory / version
     if target.exists():
         snapshot_manifest(target, data)
+        record = yaml.safe_load((target / f'{dataset}.meta.yaml').read_text(encoding='utf-8'))
+        write_current(directory, version, record)
         print(f'Using existing snapshot {version}')
         return
     csv_bytes, metadata, etag = download_owid_chart_data(slug)
@@ -42,10 +44,18 @@ def download(dataset, slug):
     (target / f'{dataset}.csv').write_bytes(csv_bytes)
     (target / f'{dataset}.owid.json').write_bytes(json_bytes)
     (target / f'{dataset}.meta.yaml').write_text(yaml.safe_dump(record, sort_keys=False), encoding='utf-8')
-    (directory / 'current.yaml').write_text(yaml.safe_dump({
-        'version': version, 'etag': etag, 'csv_hash': record['checksums']['csv_xxh3_64'],
-    }), encoding='utf-8')
     snapshot_manifest(target, data)
+    write_current(directory, version, record)
+
+
+def write_current(directory, version, record):
+    pointer = directory / 'current.yaml'
+    temporary = directory / 'current.yaml.tmp'
+    temporary.write_text(yaml.safe_dump({
+        'version': version, 'etag': record.get('etag'),
+        'csv_hash': record['checksums']['csv_xxh3_64'],
+    }), encoding='utf-8')
+    temporary.replace(pointer)
 
 
 if __name__ == '__main__':

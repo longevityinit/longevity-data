@@ -442,14 +442,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         const labelX = width - margin.right + 18;
         const labels = endpointLayer.selectAll('.line-label').data(visibleEndpointLabels(active), item => item.id)
           .join(enter => {
-            const group = enter.append('g').attr('class', 'line-label').attr('tabindex', 0).attr('role', 'group');
+            const group = enter.append('g').attr('class', 'line-label');
             group.append('path').attr('class', 'label-connector').attr('fill', 'none').attr('stroke-width', 1).attr('stroke-opacity', .5);
             group.append('rect').attr('fill', 'transparent');
             group.append('text').attr('font-size', 12).attr('font-weight', 400).attr('dominant-baseline', 'middle');
             group.on('pointerenter', (event, item) => { if (event.pointerType !== 'touch') { hoveredSeries = item.id; updateHighlight(); } })
               .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
-              .on('focus', function (event, item) { focusedSeries = this.matches(':focus-visible') ? item.id : null; updateHighlight(); })
-              .on('blur', () => { focusedSeries = null; updateHighlight(); });
+              .on('click', event => event.stopPropagation());
             return group;
           });
         labels.attr('data-series', item => item.id).attr('aria-label', item => item.name);
@@ -510,7 +509,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         const heading = tooltip.append('div').attr('class', 'tooltip-heading');
         heading.append('span').text(year);
         if (pin) heading.append('button').attr('type', 'button').attr('aria-label', 'Close year values')
-          .text('×').on('click', () => { closeTooltip(); svg.node().focus({preventScroll: true}); });
+          .text('×').on('click', () => { closeTooltip(); });
         const contents = tooltip.append('div').attr('class', 'tooltip-contents');
         const entries = series.map(item => ({...item, row: summary.get(item.id).get(year)}))
           .sort((a, b) => (b.row?.value ?? -Infinity) - (a.row?.value ?? -Infinity));
@@ -560,15 +559,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
           .style('top', `${Math.max(0, Math.min(container.clientHeight - box.height, top))}px`);
 
       }
-      svg.attr('tabindex', 0).on('pointermove', event => showTooltip(event))
+      svg.on('pointermove', event => showTooltip(event))
         .on('pointerleave', () => { if (!pinned) closeTooltip(); })
-        .on('click', event => showTooltip(event, true))
-        .on('keydown', event => {
-          if (event.key === 'Enter') { event.preventDefault(); showTooltip(null, true); }
-        });
+        .on('click', event => showTooltip(event, true));
       d3.select(window).on('keydown.headlineTooltip', event => {
         if (event.key === 'Escape' && pinned) {
-          closeTooltip(); svg.node().focus({preventScroll: true});
+          closeTooltip();
         }
       });
       const body = document.getElementById('values');

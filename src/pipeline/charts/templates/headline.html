@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>A century of unequal progress: life expectancy at birth for women, 1751–2023 · Our Longevity in Data</title>
   <script defer src="../vendor/d3-7.9.0.min.js"></script>
-  <script defer src="headline.js?v=76"></script>
+  <script defer src="headline.js?v=78"></script>
   <style>
     * { box-sizing: border-box; }
     :root { --control-border: #cad2d9; --control-radius: 6px; --control-hover: #f2f5f7; --secondary-text: #65727d; }
@@ -90,7 +90,7 @@
     }
     a { color: #245b7e; }
     :focus-visible { outline: 3px solid #236cad; outline-offset: 4px; }
-    #chart { position: relative; min-height: 330px; } #chart svg { display: block; width: 100%; }
+    #chart { position: relative; min-height: 330px; } #chart svg { display: block; width: 100%; user-select: none; outline: none; }
     .chart-layout { display: block; }
     .year-range { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #e2e8ed; align-items: center; font-size: 13px; }
     .range-editor { display: grid; grid-template-columns: var(--plot-left, 64px) minmax(0, 1fr) var(--plot-right, 175px); gap: 0; width: 100%; align-items: start; }
