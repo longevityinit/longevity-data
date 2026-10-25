@@ -99,27 +99,34 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     const baselineLines = new Set(['frontier', 'OWID_WRL']);
     const countryList = document.getElementById('country-list');
     const countrySearch = document.getElementById('country-search');
-    if (window.matchMedia('(max-width: 600px)').matches) document.getElementById('country-picker').open = false;
+    const pickerMedia = window.matchMedia('(max-width: 600px)');
+    if (pickerMedia.matches) document.getElementById('country-picker').open = false;
+    pickerMedia.addEventListener('change', event => {
+      if (event.matches) document.getElementById('country-picker').open = false;
+    });
     let pickerFilter = 'all';
     function updateCountries() {
       for (const code of baselineLines) selectedCountries.add(code);
+      countryList.querySelectorAll('.picker-section').forEach(heading => heading.remove());
       const seenSections = new Set();
-      for (const label of countryList.children) {
+      for (const label of countryList.querySelectorAll('label')) {
         const matchesFilter = pickerFilter === 'all'
           || (pickerFilter === 'selected' && selectedCountries.has(label.dataset.code))
           || label.dataset.category === pickerFilter;
         label.hidden = !matchesFilter || !label.textContent.toLocaleLowerCase().includes(countrySearch.value.trim().toLocaleLowerCase());
         label.querySelector('input').checked = selectedCountries.has(label.dataset.code);
-        delete label.dataset.section;
         if (!label.hidden && !seenSections.has(label.dataset.group)) {
-          label.dataset.section = label.dataset.group;
+          const heading = document.createElement('div');
+          heading.className = 'picker-section';
+          heading.textContent = label.dataset.group;
+          label.before(heading);
           seenSections.add(label.dataset.group);
         }
       }
       const selectionCount = [...selectedCountries].filter(code => !baselineLines.has(code)).length;
-      document.getElementById('selection-count').textContent = `${selectionCount} comparisons selected`;
+      document.getElementById('picker-heading-count').textContent = `${selectionCount} ${selectionCount === 1 ? 'comparison' : 'comparisons'}`;
       document.getElementById('clear-countries').disabled = selectionCount === 0;
-      document.getElementById('country-empty').hidden = [...countryList.children].some(label => !label.hidden);
+      document.getElementById('country-empty').hidden = [...countryList.querySelectorAll('label')].some(label => !label.hidden);
     }
     function syncUrl() {
       const url = new URL(location.href);
@@ -156,7 +163,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       label.dataset.category = category === 'Percentile' ? 'percentiles' : category === 'Country' ? 'countries' : 'regions';
       label.dataset.group = category === 'Percentile' ? 'Percentiles' : category === 'Country' ? 'Countries' : 'Regions';
       const optionName = document.createElement('span'); optionName.className = 'option-name'; optionName.textContent = name.replace(' (population-weighted)', '');
-      label.append(input, optionName); countryList.append(label);
+      const value = document.createElement('span'); value.className = 'option-value';
+      label.append(input, optionName, value); countryList.append(label);
     }
     countrySearch.addEventListener('input', updateCountries);
     document.querySelectorAll('[data-picker-filter]').forEach(button => {
@@ -181,11 +189,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       if (color.h >= 55 && color.h <= 115) color.l = Math.min(color.l, .38);
       return {id: code, name: names.get(code), color: color.formatHex(), dash: /^p\d+$/.test(code) ? '6 3' : null};
     }
+    const lineWidth = (code, emphasized = false) => countryCodes.has(code) ? (emphasized ? 3 : 1.8) : (emphasized ? 4 : 2.7);
     updateCountries();
     const startControl = document.getElementById('start-year');
     const endControl = document.getElementById('end-year');
     for (const input of [startControl, endControl]) { input.min = data.start_year; input.max = data.end_year; }
-    const presets = [data.start_year, 1950, 2000, data.end_year].filter((year, i, all) => year >= data.start_year && year <= data.end_year && all.indexOf(year) === i);
+    const presets = [data.start_year, 1850, 1950, 2000, data.end_year].filter((year, i, all) => year >= data.start_year && year <= data.end_year && all.indexOf(year) === i);
     const marks = document.getElementById('year-marks');
     presets.forEach(year => { const option = document.createElement('option'); option.value = year; marks.append(option); });
     function moveNearestHandle(year) {
@@ -208,7 +217,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     });
     presets.forEach(year => {
       const button = document.createElement('button');
-      button.type = 'button'; button.className = 'year-marker'; button.textContent = year;
+      button.type = 'button'; button.className = 'year-marker'; button.textContent = year; button.dataset.year = year;
       button.setAttribute('aria-label', `Move nearest range handle to ${year}`);
       button.style.left = `${100 * (year - data.start_year) / (data.end_year - data.start_year)}%`;
       button.addEventListener('click', () => {
@@ -253,6 +262,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     function resetRange() {
       startYear = data.start_year; endYear = data.end_year; changeYears();
     }
+    document.getElementById('view-data').addEventListener('click', event => {
+      const table = document.getElementById('chart-data');
+      table.hidden = !table.hidden;
+      event.currentTarget.setAttribute('aria-expanded', String(!table.hidden));
+    });
     document.getElementById('timeline').addEventListener('dblclick', event => {
       if (event.target.closest('button')) return;
       event.preventDefault();
@@ -264,7 +278,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       });
     }
     const format = value => value == null ? '—' : value.toFixed(2);
-    const countryCountSubtitle = d3.select('#country-count-subtitle');
     document.getElementById('source').textContent = `${data.source}, via Our World in Data`;
     const credits = document.getElementById('data-source-credits');
     for (const source of data.sources || []) {
@@ -275,11 +288,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       credits.append(entry);
     }
     function render() {
-      const years = d3.range(startYear, endYear + 1);
       startControl.value = startYear; endControl.value = endYear;
       const timeline = document.getElementById('timeline');
       timeline.style.setProperty('--range-start', `${100 * (startYear - data.start_year) / (data.end_year - data.start_year)}%`);
       timeline.style.setProperty('--range-end', `${100 * (endYear - data.start_year) / (data.end_year - data.start_year)}%`);
+      // Keep preset labels readable even on a narrow chart; snapping still uses every preset.
+      const markerWidth = timeline.clientWidth;
+      const shownMarkers = [];
+      for (const year of [data.start_year, data.end_year, 1950, 1850, 2000]) {
+        const position = (year - data.start_year) / (data.end_year - data.start_year) * markerWidth;
+        if (presets.includes(year) && shownMarkers.every(other => Math.abs(other - position) >= 44)) {
+          shownMarkers.push(position);
+          timeline.querySelector(`[data-year="${year}"]`).hidden = false;
+        } else if (presets.includes(year)) timeline.querySelector(`[data-year="${year}"]`).hidden = true;
+      }
       document.getElementById('start-value').value = startYear;
       document.getElementById('end-value').value = endYear;
       const series = [...selectedCountries].map(lineStyle);
@@ -291,31 +313,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       let hoveredSeries = null;
       let focusedSeries = null;
       const sex = document.querySelector('input[name="sex"]:checked').value;
-      const title = `${startYear === data.start_year && endYear === data.end_year ? 'A century of unequal progress' : 'Unequal progress'}: life expectancy at birth for ${sex === 'female' ? 'women' : 'men'}, ${startYear}–${endYear}`;
-      document.getElementById('chart-title').textContent = title;
-      document.title = `${title} · Our Longevity in Data`;
       const rows = data.rows.filter(r => r.sex === sex);
-      if (!rows.some(r => r.value != null)) {
+      // Trim only empty edges; keep the requested range so changing selections can restore history.
+      const available = rows.filter(r => selectedCountries.has(r.series) && r.value != null && r.year >= startYear && r.year <= endYear);
+      let plotStart = available.length ? d3.min(available, r => r.year) : startYear;
+      let plotEnd = available.length ? d3.max(available, r => r.year) : endYear;
+      // A single observed year still needs a nonzero axis domain.
+      if (plotStart === plotEnd) {
+        plotStart = Math.max(startYear, plotStart - 1);
+        plotEnd = Math.min(endYear, plotEnd + 1);
+      }
+      const years = d3.range(plotStart, plotEnd + 1);
+      const periodTitle = 'A century of unequal progress';
+      const title = `${periodTitle}: life expectancy at birth for ${sex === 'female' ? 'women' : 'men'}, ${plotStart}–${plotEnd}`;
+      document.getElementById('chart-title').textContent = periodTitle;
+      document.getElementById('chart-subtitle').textContent = `Life expectancy at birth · ${sex === 'female' ? 'Women' : 'Men'} · ${plotStart}–${plotEnd}`;
+      document.title = `${title} · Our Longevity in Data`;
+      const endValues = new Map(rows.filter(row => row.year === plotEnd).map(row => [row.series, row.value]));
+      for (const label of countryList.querySelectorAll('label')) {
+        const code = label.dataset.code;
+        const value = label.querySelector('.option-value');
+        const endValue = endValues.get(code);
+        value.textContent = endValue == null ? '—' : endValue.toFixed(1);
+        value.title = endValue == null ? `No data for ${plotEnd}` : `${plotEnd}: ${endValue.toFixed(1)} years`;
+      }
+      if (!available.length) {
         status.hidden = false;
-        countryCountSubtitle.text('0');
         container.replaceChildren();
         document.getElementById('values').replaceChildren();
         status.textContent = 'No observations available for this selection.';
         return;
       }
       const grouped = d3.group(rows, r => r.series);
-      const latestCountries = rows.filter(r => r.kind === 'country' && r.year === data.end_year);
-      const totalPopulation = d3.sum(latestCountries, r => r.population);
-      const populationShares = new Map(latestCountries.map(r => [r.code, r.population / totalPopulation]));
-      // Square-root scaling keeps small countries visible without overwhelming the summaries.
-      const countryOpacity = share => .06 + .44 * Math.sqrt(Math.min(share, .2) / .2);
-      const opacityKey = d3.select('#opacity-samples');
-      opacityKey.selectAll('*').remove();
-      for (const percent of [.1, 1, 5, 20]) {
-        const sample = opacityKey.append('li');
-        sample.append('span').attr('aria-hidden', 'true').style('opacity', countryOpacity(percent / 100));
-        sample.append('b').style('font-weight', 'normal').text(`${percent}%`);
-      }
       const summary = new Map(series.map(s => [s.id, new Map((grouped.get(s.id) || []).map(r => [r.year, r]))]));
       const width = Math.max(280, container.clientWidth), height = width < 600 ? 350 : 480;
       const mobile = width < 600;
@@ -324,35 +353,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       const displayScale = container.clientWidth / width;
       rangeEditor.style.setProperty('--plot-left', `${margin.left * displayScale}px`);
       rangeEditor.style.setProperty('--plot-right', `${margin.right * displayScale}px`);
-      const x = d3.scaleLinear().domain([startYear, endYear]).range([margin.left, width - margin.right]);
-      const y = d3.scaleLinear().domain([0, Math.ceil(d3.max(data.rows, r => r.value) / 10) * 10]).range([height - margin.bottom, margin.top]);
+      const x = d3.scaleLinear().domain([plotStart, plotEnd]).range([margin.left, width - margin.right]);
+      const [lowestValue, highestValue] = d3.extent(available, row => row.value);
+      const valuePadding = Math.max(2, (highestValue - lowestValue) * 0.05);
+      const y = d3.scaleLinear()
+        .domain([Math.max(0, Math.floor((lowestValue - valuePadding) / 5) * 5),
+                 Math.ceil((highestValue + valuePadding) / 5) * 5])
+        .range([height - margin.bottom, margin.top]);
       container.replaceChildren();
       const svg = d3.select(container).append('svg').attr('viewBox', `0 0 ${width} ${height}`)
-        .attr('role', 'group').attr('aria-label', `${sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, ${startYear}–${endYear}. Annual highlighted values are available in the table below.`);
+        .attr('role', 'group').attr('aria-labelledby', 'chart-subtitle').attr('aria-details', 'chart-data');
       svg.append('g').attr('transform', `translate(${margin.left},0)`)
         .call(d3.axisLeft(y)
-          .tickValues(d3.range(0, y.domain()[1] + 1, 10))
+          .ticks(6)
           .tickFormat(value => value === 0 ? '' : d3.format('d')(value))
           .tickSize(-(width - margin.left - margin.right)))
         .call(g => g.select('.domain').remove())
         .call(g => g.selectAll('.tick line').attr('stroke', '#edf0f2').attr('stroke-width', 1));
       // Leave at least 40px between four-digit year labels, using whole decades.
       const plotWidth = width - margin.left - margin.right;
-      const minimumStep = (endYear - startYear) * 40 / plotWidth;
-      const yearStep = [1, 2, 5, 10, 20, 30, 50, 100].find(step => step >= minimumStep) || 100;
+      const minimumStep = (plotEnd - plotStart) * 40 / plotWidth;
+      const yearStep = [1, 2, 5, 10, 20, 25, 50, 100].find(step => step >= minimumStep) || 100;
       svg.append('g').attr('transform', `translate(0,${height - margin.bottom})`)
         .call(d3.axisBottom(x)
-          .tickValues(d3.range(startYear, endYear + 1, yearStep))
+          .tickValues(d3.range(Math.ceil(plotStart / yearStep) * yearStep, plotEnd + 1, yearStep))
           .tickFormat(d3.format('d')));
       svg.append('text')
         .attr('transform', `translate(16,${(margin.top + height - margin.bottom) / 2}) rotate(-90)`)
         .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#536372')
         .text('Life expectancy at birth (years)');
-      if (startYear < 1950) svg.append('text').attr('x', (x(startYear) + x(Math.min(1950, endYear))) / 2)
-        .attr('y', y(85)).attr('dominant-baseline', 'middle')
-        .attr('text-anchor', 'middle').attr('font-size', 11)
-        .attr('fill', '#65727d').text('Before 1950: limited country coverage');
-      if (startYear <= 1950 && endYear >= 1950) svg.append('line').attr('x1', x(1950)).attr('x2', x(1950))
+      if (plotStart <= 1950 && plotEnd >= 1950) svg.append('line').attr('x1', x(1950)).attr('x2', x(1950))
         .attr('y1', margin.top).attr('y2', height - margin.bottom)
         .attr('stroke', '#65727d').attr('stroke-width', 1.5)
         .attr('stroke-dasharray', '1 5').attr('stroke-linecap', 'round')
@@ -362,23 +392,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         const byYear = new Map(values.map(r => [r.year, r]));
         return years.map(year => byYear.get(year) || {year, value: null});
       }
-      for (const values of grouped.values()) {
-        if (values[0].kind !== 'country' || selectedCountries.has(values[0].code)) continue;
-        svg.append('path').attr('class', 'country-line').datum(points(values)).attr('d', line).attr('fill', 'none')
-          .attr('stroke', '#75818b')
-          .attr('stroke-opacity', countryOpacity(populationShares.get(values[0].code) || 0))
-          .attr('stroke-width', 1)
-          .append('title').text(values[0].entity);
-      }
       for (const item of series) {
         svg.append('path').attr('class', 'summary-line').attr('data-series', item.id).datum(points(grouped.get(item.id) || [])).attr('d', line)
-          .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', 2.7).attr('stroke-dasharray', item.dash || null)
+          .attr('fill', 'none').attr('stroke', item.color).attr('stroke-width', lineWidth(item.id)).attr('stroke-dasharray', item.dash || null)
           .on('pointerenter', event => { if (event.pointerType !== 'touch') { hoveredSeries = item.id; updateHighlight(); } })
           .on('pointerleave', () => { hoveredSeries = null; updateHighlight(); })
           .append('title').text(item.name);
       }
       const endpointCandidates = series.flatMap(item => {
-        const last = (grouped.get(item.id) || []).filter(r => r.value != null && r.year >= startYear && r.year <= endYear)
+        const last = (grouped.get(item.id) || []).filter(r => r.value != null && r.year >= plotStart && r.year <= plotEnd)
           .sort((a, b) => a.year - b.year).at(-1);
         if (!last) return [];
         const words = item.name.replace(' (population-weighted)', '').split(' ');
@@ -446,12 +468,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       function updateHighlight() {
         const selectedSeries = hoveredSeries || focusedSeries;
         drawEndpointLabels(selectedSeries);
-        svg.selectAll('.country-line').attr('opacity', selectedSeries ? .15 : 1);
         svg.selectAll('.summary-line, .line-label').attr('opacity', function () {
           return !selectedSeries || this.getAttribute('data-series') === selectedSeries ? 1 : .15;
         });
         svg.selectAll('.summary-line').attr('stroke-width', function () {
-          return this.getAttribute('data-series') === selectedSeries ? 4 : 2.7;
+          return lineWidth(this.getAttribute('data-series'), this.getAttribute('data-series') === selectedSeries);
         });
 
       }
@@ -479,7 +500,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         }
         lastHover = [px, py];
         pinned = pin;
-        const year = Math.max(startYear, Math.min(endYear, Math.round(x.invert(px))));
+        const year = Math.max(plotStart, Math.min(plotEnd, Math.round(x.invert(px))));
         guide.attr('x1', x(year)).attr('x2', x(year)).attr('visibility', 'visible');
         labelPointer = {year, y: py};
         drawEndpointLabels(hoveredSeries || focusedSeries);
@@ -564,7 +585,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         body.append(tr);
       }
       document.getElementById('table-caption').textContent = `${sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, in years`;
-      countryCountSubtitle.text(new Set(rows.filter(r => r.kind === 'country').map(r => r.code)).size);
       status.hidden = true;
     }
     document.querySelectorAll('input[name="sex"]').forEach(input => input.addEventListener('change', () => { syncUrl(); render(); }));

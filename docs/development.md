@@ -213,12 +213,12 @@ life expectancy, historical population, and female/male population by age. The i
 joins historical population by location code and year, and calculates summaries.
 All five snapshot dependencies are pinned in the publication manifest.
 
-The first version covers 1900–2023 at birth. Before 1950 it includes only historical
+The first version covers 1751–2023 at birth, beginning with Sweden; the available range is derived from the stored observations. Before 1950 it includes only historical
 locations that match the modern country/territory universe. Coverage is sparse;
 the World series and income groups start in 1950 to avoid presenting the
-early sample as globally representative. Population must
+early sample as globally representative. Recorded population must
 be strictly above one million for frontier eligibility; all tied winners are
-retained. Other countries remain in the background. Missing values
+retained. Best practice starts in 1850 and requires at least two eligible locations with observations for that year and sex; otherwise it remains blank. Country observations with missing historical population remain available individually but are excluded from frontier eligibility. There is no population interpolation; most years before 1800 lack a matching population observation. The generated JSON records the number of missing historical country-years. Only selected series are plotted. Missing values
 are not interpolated. Historical population is based on current borders; its
 compatibility with historical mortality territories needs review before publishing.
 The income classification vintage also remains a publication review item.
@@ -260,4 +260,10 @@ Legacy `lines`, internal IDs, `sex=female|male`, and `country=DEU` links remain 
 The year-range controls serialize `start` and `end` in the URL. Bounds are clamped to available years; reversed/equal bounds reset to the full range. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range; the y-axis remains fixed for comparison.
 
 
-Headline line identification: endpoint labels prioritize Best practice, World, selected percentiles, and a hovered or keyboard-focused line. Remaining labels are chosen by their distance from the pointer at the hovered year, using the same principle as the hover popup. Lines without data for that year are omitted. Desktop shows up to ten endpoint labels; charts narrower than 600px show up to four (or enough to retain all selected reference lines). Without a pointer, comparisons are ranked by endpoint value. Labels remain ordered by endpoint height and are spaced to avoid overlap. There is no separate line legend. The inline “Show on chart” panel manages selections: search, category filters, Selected filter, and a clear-comparisons action. At viewport widths of 1100px and above it is a sticky sidebar beside the plot; on narrower screens it sits above the plot. On mobile it starts collapsed. Selections update the chart and URL immediately.
+The headline chart plots selected series only; unselected countries are not drawn in the background.
+
+Headline line identification: endpoint labels prioritize Best practice, World, selected percentiles, and a hovered or keyboard-focused line. Remaining labels are chosen by their distance from the pointer at the hovered year, using the same principle as the hover popup. Lines without data for that year are omitted. Desktop shows up to ten endpoint labels; charts narrower than 600px show up to four (or enough to retain all selected reference lines). Without a pointer, comparisons are ranked by endpoint value. Labels remain ordered by endpoint height and are spaced to avoid overlap. There is no separate line legend. The inline “Show on chart” panel manages selections: search, category filters, Selected filter, and a clear-comparisons action. At viewport widths of 1100px and above it is a sidebar beside the plot; on narrower screens it sits above the plot. The comparison count and Clear selection action sit below the category filters. On mobile it starts collapsed; expanded lists shrink to their content up to a scrollable maximum height. Every option shows its life expectancy for the displayed end year and sex (a dash when unavailable); the selector does not include line-color swatches. Selections update the chart and URL immediately.
+
+The headline plot trims empty years within the requested range and fits the y-axis to available values of the selected lines and sex. Rounded y-axis bounds include at least two years of padding; the scale does not always start at zero.
+
+Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. Historical coverage is explained below the chart rather than inside the plot. A persistent note below the chart explains the Best practice population cutoff and limited historical coverage. The footer groups View data, CSV, and JSON actions above the source credit and expandable credits/methodology.

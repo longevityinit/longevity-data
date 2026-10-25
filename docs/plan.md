@@ -100,6 +100,7 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 - [ ] Revisit IP-based country suggestions: inspect the WordPress embed and hosting/CDN setup, then decide how to pass a country hint to the chart. Saved selection must take priority, followed by IP country, browser locale, and manual selection. Currently only saved selection, locale guessing, and manual selection are implemented.
 - [ ] Revisit the population-weighted 10th percentile definition: compare the current inverse weighted CDF (no interpolation) with linear interpolation between countries' cumulative-population midpoints, using sex-specific weights. Review differences in the actual series before choosing; document the chosen method and test boundaries and ties. The current calculation remains unchanged pending this decision.
 
-- [ ] Assess historical source coverage before extending the headline range to 1850; current observations begin in 1900.
+- [x] Extend individual historical country series to the earliest available sex-specific observation (Sweden, 1751); retain gaps in reference series and exclude missing population from best-practice eligibility.
+- [ ] Review historical population coverage and geographic comparability before publishing the extended frontier.
 
 - [ ] Resolve the existing IHME attribution mismatch: the stored licence/citation file cites GBD 2016, while metadata identifies GBD 2023 (and the query lists YLDs despite the dataset name all_cause_deaths). Verify against the original download before use; do not infer a replacement citation.

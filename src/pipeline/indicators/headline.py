@@ -67,8 +67,9 @@ def standardise(rows):
 def historical_observations(history, population, current):
     locations = {r['code'] for r in current if r['kind'] == 'country'}
     populations = {}
+    earliest_year = min((int(row['Year']) for row in history if row['Code'] in locations and int(row['Year']) < 1950), default=1950)
     for row in population:
-        if not 1900 <= int(row['Year']) < 1950:
+        if not earliest_year <= int(row['Year']) < 1950 or row['Code'] not in locations:
             continue
         key = row['Code'], int(row['Year'])
         if key in populations:
@@ -77,11 +78,9 @@ def historical_observations(history, population, current):
     result, seen = [], set()
     for row in history:
         year, code = int(row['Year']), row['Code']
-        if not 1900 <= year < 1950 or code not in locations:
+        if year >= 1950 or code not in locations:
             continue
         pop = populations.get((code, year))
-        if pop is None:
-            raise ValueError(f'Missing historical population: {code}, {year}')
         for sex in SEX_COLUMNS:
             key = code, year, sex
             if key in seen:
@@ -164,9 +163,9 @@ def calculate(observations):
         annual[row['sex'], row['year']].append(row)
     for (sex, year), rows in sorted(annual.items()):
         countries = [r for r in rows if r['kind'] == 'country' and r['value'] is not None]
-        eligible = [r for r in countries if r['population'] > 1_000_000]
+        eligible = [r for r in countries if r['population'] is not None and r['population'] > 1_000_000]
         base = dict(year=year, sex=sex, age=0, unit='years', kind='summary', population=None)
-        best = max((r['value'] for r in eligible), default=None)
+        best = max(r['value'] for r in eligible) if year >= 1850 and len(eligible) >= 2 else None
         winners = sorted(r['code'] for r in eligible if r['value'] == best)
         result.append(dict(base, code='frontier', series='frontier', entity='Best practice',
                            value=best, winners=winners))
@@ -235,11 +234,12 @@ def main():
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     write_json(directory / 'headline.json', {
         'id': 'headline-life-expectancy', 'title': 'Life expectancy at birth',
-        'start_year': 1900, 'end_year': 2023, 'default_sex': 'female',
+        'start_year': min(r['year'] for r in observations if r['value'] is not None), 'end_year': 2023, 'default_sex': 'female',
         'source': 'HMD (2025); UN WPP (2024); historical population: HYDE/Gapminder', 'source_url': metadata['chart']['originalChartUrl'],
         'snapshot_version': version,
         'percentile_population_weights': 'sex_specific',
         'population_snapshots': weight_versions,
+        'historical_population_missing_country_years': len({(r['code'], r['year']) for r in observations if r['year'] < 1950 and r['population'] is None}),
         'historical_snapshots': {'life_expectancy': history_version, 'population': population_version},
         'sources': [m['chart'] for m in (metadata, history_meta, population_meta)] + weight_sources, 'code_revision': revision,
         'code_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT)),

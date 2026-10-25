@@ -86,6 +86,31 @@ class HeadlineTests(unittest.TestCase):
         self.assertIsNone(next(r for r in result if r['series'] == 'AAA' and r['sex'] == 'female')['value'])
         self.assertEqual(next(r for r in result if r['series'] == 'OWID_WRL' and r['sex'] == 'female')['value'], 72)
 
+    def test_frontier_requires_two_eligible_countries_for_each_sex(self):
+        observations = standardise([source('AAA', 80, 70), source('BBB', '', 65),
+                                    source('CCC', 99, 99, 1_000_000)] + groups())
+        lookup = {(r['series'], r['sex']): r for r in calculate(observations)}
+        self.assertIsNone(lookup['frontier', 'female']['value'])
+        self.assertEqual(lookup['frontier', 'female']['winners'], [])
+        self.assertEqual(lookup['frontier', 'male']['value'], 70)
+        self.assertEqual(lookup['frontier', 'male']['winners'], ['AAA'])
+
+    def test_frontier_starts_in_1850_but_preserves_earlier_country_values(self):
+        current = standardise([source('AAA', 80, 75), source('BBB', 85, 78)])
+        history = [{'Code': code, 'Entity': code, 'Year': str(year), 'Female': str(female), 'Male': str(male)}
+                   for year in (1849, 1850)
+                   for code, female, male in [('AAA', 50, 45), ('BBB', 55, 48)]]
+        population = [{'Code': code, 'Year': str(year), 'Population': '2000000'}
+                      for year in (1849, 1850) for code in ('AAA', 'BBB')]
+        observations = historical_observations(history, population, current)
+        lookup = {(r['series'], r['sex'], r['year']): r for r in calculate(observations)}
+        for sex in ('female', 'male'):
+            self.assertIsNone(lookup['frontier', sex, 1849]['value'])
+            self.assertEqual(lookup['frontier', sex, 1849]['winners'], [])
+            self.assertIsNotNone(lookup['AAA', sex, 1849]['value'])
+            self.assertEqual(lookup['frontier', sex, 1850]['winners'], ['BBB'])
+            self.assertEqual(lookup['frontier', sex, 1850]['value'], 55 if sex == 'female' else 48)
+
     def test_duplicate_missing_population_and_invalid_values_fail(self):
         row = source('AAA', 80, 70)
         for rows in ([row, row], [source('AAA', 80, 70, '')], [source('AAA', 'nan', 70)]):
@@ -97,9 +122,32 @@ class HeadlineTests(unittest.TestCase):
         history = [{'Code': 'AAA', 'Entity': 'Old name', 'Year': '1900', 'Female': '50', 'Male': '45'}]
         population = [{'Code': 'AAA', 'Year': '1900', 'Population': '2000000'}]
         result = calculate(historical_observations(history, population, current))
-        self.assertEqual(next(r for r in result if r['series'] == 'frontier' and r['sex'] == 'female')['value'], 50)
+        self.assertIsNone(next(r for r in result if r['series'] == 'frontier' and r['sex'] == 'female')['value'])
         self.assertTrue(all(r['value'] is None for r in result if r['series'] in ('OWID_HIC', 'OWID_WRL', 'OWID_LIC', 'p10', 'p25')))
-        with self.assertRaises(ValueError): historical_observations(history, [], current)
+        missing_population = historical_observations(history, [], current)
+        self.assertEqual(missing_population[0]['value'], 50)
+        self.assertIsNone(next(r for r in calculate(missing_population) if r['series'] == 'frontier')['value'])
+
+    def test_early_history_keeps_values_without_inventing_population_or_reference_values(self):
+        current = standardise([source('SWE', 85, 80)])
+        history = [
+            {'Code': 'SWE', 'Entity': 'Sweden', 'Year': '1751', 'Female': '39.93', 'Male': '36.87'},
+            {'Code': 'SWE', 'Entity': 'Sweden', 'Year': '1760', 'Female': '40', 'Male': ''},
+            {'Code': 'OTHER', 'Entity': 'Unknown', 'Year': '1750', 'Female': '99', 'Male': '99'},
+            {'Code': 'SWE', 'Entity': 'Sweden', 'Year': '1950', 'Female': '99', 'Male': '99'},
+        ]
+        population = [{'Code': 'SWE', 'Year': '1760', 'Population': '1915532'}]
+        observations = historical_observations(history, population, current)
+        self.assertEqual(len(observations), 4)
+        lookup = {(r['series'], r['sex'], r['year']): r for r in calculate(observations)}
+        self.assertEqual(lookup['SWE', 'female', 1751]['value'], 39.93)
+        self.assertEqual(lookup['SWE', 'male', 1751]['value'], 36.87)
+        self.assertIsNone(lookup['SWE', 'female', 1751]['population'])
+        self.assertIsNone(lookup['frontier', 'female', 1751]['value'])
+        self.assertIsNone(lookup['frontier', 'female', 1760]['value'])
+        self.assertIsNone(lookup['frontier', 'male', 1760]['value'])
+        self.assertTrue(all(r['value'] is None for r in lookup.values() if r['series'] in ('OWID_WRL', 'p10', 'p25', 'p75', 'p90')))
+        with self.assertRaises(ValueError): historical_observations(history + [history[0]], population, current)
 
 
 if __name__ == '__main__':
