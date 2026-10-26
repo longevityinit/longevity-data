@@ -228,6 +228,7 @@ records exact direct and transitive versions and package integrity hashes:
 npm ci
 npm test
 npm run lint
+npm run format:check
 npx playwright install chromium
 npm run test:browser
 ```
@@ -243,3 +244,20 @@ Run `npm run format` after editing the headline JavaScript or CSS. New modules
 and CSS must be included in the chart builder's asset list and publication
 manifest. Browser dependencies are development-only; the published page loads
 native ES modules and the existing D3 asset directly.
+
+## Continuous integration
+
+`.github/workflows/checks.yml` runs Python tests, JavaScript tests, ESLint,
+read-only Prettier checks, and Chromium browser tests on pull requests and pushes
+to `main`. It can also be run manually from GitHub Actions. It uses Python 3.10
+and Node.js 22 on a standard Ubuntu runner. Superseded runs are cancelled and
+each run has a 15-minute timeout.
+
+The workflow installs locked dependencies and Chromium, and downloads only the
+pinned D3 browser asset with SHA-256 verification for deterministic fixture tests.
+It does not download production datasets, run publication commands, or use
+repository secrets or bucket credentials. Checkout credentials are not persisted;
+the workflow token has read-only repository access.
+
+Standard GitHub-hosted runners are free for this public repository. No caches or
+artifacts are uploaded. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
