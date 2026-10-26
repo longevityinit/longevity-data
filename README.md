@@ -10,6 +10,7 @@ If you want to help out, please [get in touch](https://thelongevityinitiative.or
 - [Implementation plan](docs/plan.md): phased checklist, starting with the headline life-expectancy graph.
 
 - [Local development](docs/development.md): environment setup, pinned dependencies, and verification.
+- [Headline graph](docs/headline-graph.md): data coverage, methodology, and chart behavior.
 
 ## Local configuration
 
