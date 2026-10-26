@@ -39,7 +39,9 @@ Bundled runtime components:
 - [D3 component and dependency notices](../licenses/d3-7.9.0-dependencies.txt),
   using the [D3 7.9.0 release lockfile](https://github.com/d3/d3/blob/v7.9.0/yarn.lock):
   30 D3 modules, InternMap, Delaunator and robust-predicates. D3's CSV command-line
-  dependencies are not part of the browser bundle.
+  dependencies are not part of the browser bundle. This file also contains the
+  ColorBrewer copyright notice and complete Apache-2.0 licence text for the
+  colour schemes included through d3-scale-chromatic; it ships with both charts.
 - [Plot dependency notices](../licenses/observable-plot-0.6.16-dependencies.txt),
   using the [Plot 0.6.16 release lockfile](https://github.com/observablehq/plot/blob/v0.6.16/yarn.lock):
   interval-tree-1d, binary-search-bounds and isoformat. Plot loads D3 separately.

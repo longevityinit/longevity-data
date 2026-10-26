@@ -67,6 +67,13 @@ class LocalPipelineTests(unittest.TestCase):
                 asset = (chart / source).resolve()
                 self.assertTrue(asset.is_file(), source)
                 self.assertEqual(upload_map[asset], asset.relative_to(root / 'output').as_posix())
+            notice = root / 'output/charts/vendor/d3-7.9.0-dependencies.txt'
+            self.assertEqual(upload_map[notice.resolve()], 'charts/vendor/d3-7.9.0-dependencies.txt')
+            self.assertEqual(notice.read_bytes(), (ROOT / 'licenses/d3-7.9.0-dependencies.txt').read_bytes())
+            notice_text = notice.read_text(encoding='utf-8')
+            self.assertIn('Copyright 2002 Cynthia Brewer', notice_text)
+            self.assertIn('END OF TERMS AND CONDITIONS', notice_text)
+            self.assertIn('APPENDIX: How to apply the Apache License', notice_text)
             self.assertTrue(sources[0].startswith('../vendor/'))
             self.assertTrue(sources[1].startswith('../vendor/'))
             self.assertEqual(sources[2], '../lib/longevityplot.js')
