@@ -228,6 +228,7 @@ Install the development tools and run the checks. npm may generate a local
 ```bash
 npm install
 npm test
+npm run lint
 npx playwright install chromium
 npm run test:browser
 ```
@@ -239,6 +240,7 @@ access bucket credentials. The server command uses `python` from your active
 virtual environment; set `PYTHON` to an interpreter path if needed. Linux CI may
 need `npx playwright install --with-deps chromium` for browser system libraries.
 
-New modules and CSS must be included in the chart builder's asset list and publication
+Run `npm run format` after editing the headline JavaScript or CSS. New modules
+and CSS must be included in the chart builder's asset list and publication
 manifest. Browser dependencies are development-only; the published page loads
 native ES modules and the existing D3 asset directly.
