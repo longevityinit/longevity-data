@@ -191,3 +191,54 @@ python -m http.server 8000 --bind 127.0.0.1 --directory output/charts
 
 Open <http://127.0.0.1:8000/life-expectancy/>. Starting the server does not build
 the chart; that URL is unavailable until its output exists. Stop with Ctrl+C.
+
+## Headline graph (first version)
+
+```bash
+python src/pipeline/download/owid/headline.py
+python src/pipeline/indicators/headline.py
+python src/pipeline/charts/headline.py
+python -m http.server 8000 --bind 127.0.0.1 --directory output/charts
+```
+
+Open <http://127.0.0.1:8000/headline-life-expectancy/>. Rebuild after changing
+the headline modules, CSS, or template. No new runtime libraries are required;
+the renderer uses the existing pinned D3 asset. The old Plot chart is unchanged.
+
+The generated JSON records input snapshot versions, source descriptions, and
+Git revision/dirty status. A dirty revision is not a reproducible code release;
+commit and rebuild before publication. CSV downloads contain standardized input
+observations; JSON includes calculated series and frontier winners.
+
+Use `output/charts/headline-life-expectancy/publish.json` with the existing dry-run
+and metadata preparation commands. This first version is for local review;
+source licences and historical geographic alignment still
+need confirmation before public release.
+
+For data sources, calculation rules, coverage, URL parameters, and chart interactions, see [Headline graph](headline-graph.md).
+
+## JavaScript checks
+
+Node.js 22.13+ and npm are needed only for JavaScript development checks; building
+and serving the static charts still uses Python, with no JavaScript bundler.
+Install the development tools and run the checks. npm may generate a local
+`package-lock.json`, which is ignored by Git; direct versions are fixed in
+`package.json`, but transitive versions are not shared between developers:
+
+```bash
+npm install
+npm test
+npx playwright install chromium
+npm run test:browser
+```
+
+The browser suite serves source modules and deterministic fixture observations on
+port 8765. It uses the pinned D3 asset under `output/charts/vendor/`, so build a
+chart first to prepare that asset. It does not download production datasets or
+access bucket credentials. The server command uses `python` from your active
+virtual environment; set `PYTHON` to an interpreter path if needed. Linux CI may
+need `npx playwright install --with-deps chromium` for browser system libraries.
+
+New modules and CSS must be included in the chart builder's asset list and publication
+manifest. Browser dependencies are development-only; the published page loads
+native ES modules and the existing D3 asset directly.

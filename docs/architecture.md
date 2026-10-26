@@ -73,7 +73,7 @@ Do not silently combine measures with different definitions.
 ### Calculated indicators
 
 Add a calculation layer between standardisation and presentation. It owns
-frontier selection, group summaries, medians, and later improvement rates and
+frontier selection, group summaries, World life expectancy, and later improvement rates and
 distance-to-frontier measures. Keep those calculations out of browser code.
 
 Each output records its input snapshots, methodology, and calculation code
@@ -108,7 +108,7 @@ and download links within the page.
 
 The initial view is life expectancy at birth, female by default with a male
 toggle. Show all eligible countries in grey and highlight best practice,
-high-income countries, global median, and low-income countries. Add the age-65
+high-income countries, World life expectancy, and low-income countries. Add the age-65
 view using the same model after validating the at-birth chart.
 
 The proposal's written series differ from its mockup, which shows a world
@@ -119,7 +119,7 @@ confirm the following before implementing calculations:
 | --- | --- |
 | Best practice | Maximum life expectancy among eligible countries with total population strictly above one million in that year. Retain winning location IDs and define tie handling. |
 | Country universe | Explicitly define country and territory eligibility; exclude regional aggregates from country calculations. |
-| Global median | Unweighted median of eligible country life expectancies, labelled as a country median rather than median individual lifespan. |
+| World life expectancy | Use the sex-specific UN WPP World series supplied by OWID directly, from 1950. Do not calculate a mean or median of country life expectancies. |
 | Income-group series | Prefer source-provided group life expectancy if definitions fit. A weighted average of national life expectancies is a different statistic. |
 | Income membership | Record classification vintage and decide whether membership is fixed or changes over time. |
 | Age 65 | Remaining life expectancy in years, not expected age at death. |
