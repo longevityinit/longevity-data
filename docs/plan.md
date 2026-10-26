@@ -78,7 +78,6 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 ## Later milestones
 
 - [ ] Decide the default behavior for WordPress embeds: should parameter-free embeds show the same fixed view to everyone, or personalize using saved preferences and country detection? The current implementation uses a fixed iframe default; this is provisional. Explicit URL state should continue to reproduce the requested view.
-
 - [ ] Annual changes and ten-year improvement rates, with explicit window rules.
 - [ ] Country-to-frontier gaps and selected-country comparisons.
 - [ ] Country dashboards consuming the shared indicators.

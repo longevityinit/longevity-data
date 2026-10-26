@@ -210,5 +210,6 @@ data/**
 
 # JavaScript development dependencies and browser test artifacts
 /node_modules/
+/package-lock.json
 /test-results/
 /playwright-report/

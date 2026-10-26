@@ -221,10 +221,12 @@ For data sources, calculation rules, coverage, URL parameters, and chart interac
 
 Node.js 22.13+ and npm are needed only for JavaScript development checks; building
 and serving the static charts still uses Python, with no JavaScript bundler.
-Install the pinned development tools and run the checks:
+Install the development tools and run the checks. npm may generate a local
+`package-lock.json`, which is ignored by Git; direct versions are fixed in
+`package.json`, but transitive versions are not shared between developers:
 
 ```bash
-npm ci
+npm install
 npm test
 npm run lint
 npx playwright install chromium
