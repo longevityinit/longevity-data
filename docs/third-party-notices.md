@@ -12,7 +12,7 @@ edge flipping and boundary clamping present in the following MIT-licensed revisi
 
 The implementation is simplified for our D3 chart; it is not the original React
 component. This attribution is to the historical revision, not current master.
-The full notice is included at the top of `src/charts/headline.js` and travels
+The full notice is included at the top of `src/charts/headline-renderer.js` and travels
 with the unminified JavaScript copied into the built chart and its publication manifest.
 Preserve this notice if bundling or minification is introduced.
 

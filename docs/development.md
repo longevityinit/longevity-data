@@ -194,8 +194,6 @@ the chart; that URL is unavailable until its output exists. Stop with Ctrl+C.
 
 ## Headline graph (first version)
 
-The new chart is separate from the original life-expectancy preview:
-
 ```bash
 python src/pipeline/download/owid/headline.py
 python src/pipeline/indicators/headline.py
@@ -204,7 +202,7 @@ python -m http.server 8000 --bind 127.0.0.1 --directory output/charts
 ```
 
 Open <http://127.0.0.1:8000/headline-life-expectancy/>. Rebuild after changing
-`src/charts/headline.js` or the headline template. No new libraries are required;
+the headline modules, CSS, or template. No new runtime libraries are required;
 the renderer uses the existing pinned D3 asset. The old Plot chart is unchanged.
 
 The generated JSON records input snapshot versions, source descriptions, and
@@ -218,3 +216,29 @@ source licences and historical geographic alignment still
 need confirmation before public release.
 
 For data sources, calculation rules, coverage, URL parameters, and chart interactions, see [Headline graph](headline-graph.md).
+
+## JavaScript checks
+
+Node.js 22.13+ and npm are needed only for JavaScript development checks; building
+and serving the static charts still uses Python, with no JavaScript bundler.
+Install the pinned development tools and run the checks:
+
+```bash
+npm ci
+npm test
+npm run lint
+npx playwright install chromium
+npm run test:browser
+```
+
+The browser suite serves source modules and deterministic fixture observations on
+port 8765. It uses the pinned D3 asset under `output/charts/vendor/`, so build a
+chart first to prepare that asset. It does not download production datasets or
+access bucket credentials. The server command uses `python` from your active
+virtual environment; set `PYTHON` to an interpreter path if needed. Linux CI may
+need `npx playwright install --with-deps chromium` for browser system libraries.
+
+Run `npm run format` after editing the headline JavaScript or CSS. New modules
+and CSS must be included in the chart builder's asset list and publication
+manifest. Browser dependencies are development-only; the published page loads
+native ES modules and the existing D3 asset directly.

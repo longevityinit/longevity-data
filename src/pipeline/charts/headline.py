@@ -22,9 +22,11 @@ def main():
     ensure_vendor_assets(charts / 'vendor')
     for name in ('headline.json', 'observations.csv'):
         shutil.copy2(source / name, directory / name)
-    shutil.copy2(ROOT / 'src/charts/headline.js', directory / 'headline.js')
+    assets = ['headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css']
+    for name in assets:
+        shutil.copy2(ROOT / 'src/charts' / name, directory / name)
     shutil.copy2(Path(__file__).parent / 'templates/headline.html', directory / 'index.html')
-    files = [directory / name for name in ('headline.json', 'observations.csv', 'headline.js', 'index.html')]
+    files = [directory / name for name in ['headline.json', 'observations.csv', 'index.html', *assets]]
     files.insert(0, charts / 'vendor' / D3_FILENAME)
     files.extend(charts / 'vendor' / name for name in ('d3-7.9.0.txt', 'd3-7.9.0-dependencies.txt'))
     write_manifest({p: p.relative_to(output).as_posix() for p in files}, directory / 'publish.json',

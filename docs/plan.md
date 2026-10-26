@@ -9,7 +9,7 @@ current system, proposed layers, and definition choices.
 
 - [ ] Confirm the written specification versus the mockup's different series.
 - [ ] Define country/territory eligibility, the annual population threshold,
-      frontier ties, World life expectancy, and income-group aggregation and membership.
+      frontier ties, global median, and income-group aggregation and membership.
 - [ ] Audit UN WPP and OWID artifacts for female/male life expectancy at birth
       and 65, annual population, income groups, units, and historical coverage.
 - [ ] Choose and record source releases, citations, licences, and permitted uses.
@@ -42,7 +42,7 @@ can be retried without deleting or re-downloading a valid snapshot.
 - [ ] Implement the selected source adapter and explicit sex/age/measure schema.
 - [ ] Add stable location IDs, population references, and versioned income classifications.
 - [ ] Validate dimension uniqueness, required units, join coverage, and missing values.
-- [ ] Calculate country, frontier, World, and income-group series.
+- [ ] Calculate country, frontier, median, and income-group series.
 - [ ] Preserve frontier winners, input snapshot IDs, and calculation code version.
 - [ ] Test the one-million boundary, ties, missing years, aggregate exclusion,
       sex/age isolation, and chosen aggregation rules with small known examples.
@@ -78,29 +78,9 @@ Done when the live embed works and the release can be rebuilt or rolled back.
 ## Later milestones
 
 - [ ] Decide the default behavior for WordPress embeds: should parameter-free embeds show the same fixed view to everyone, or personalize using saved preferences and country detection? The current implementation uses a fixed iframe default; this is provisional. Explicit URL state should continue to reproduce the requested view.
-- [ ] Decide the placement of the country/region/percentile selector and removable selected-line entries. The current “+ Add line” control below the selected entries is provisional; review its position on desktop and mobile.
 
 - [ ] Annual changes and ten-year improvement rates, with explicit window rules.
 - [ ] Country-to-frontier gaps and selected-country comparisons.
 - [ ] Country dashboards consuming the shared indicators.
 - [ ] Validate IHME provenance before adding healthy-life-expectancy measures.
 - [ ] Add life-table inputs for lifespan percentiles and disparity measures.
-
-## Headline first version implemented
-
-- [x] Separate local at-birth preview, female default with native radio controls.
-- [x] OWID snapshots for modern values and the requested 1900–1949 history.
-- [x] Python frontier calculations and source-provided World series, population threshold and ties.
-- [x] Grey country lines, four reference series, year tooltips and annual table.
-- [x] CSV/JSON downloads, source information and explicit early-coverage caveats.
-- [x] Focused tests for thresholds, ties, sex isolation, missing data and historical joins.
-- [ ] Confirm historical geographic comparability, source licences and income-group membership before publication.
-- [ ] Complete browser/mobile/accessibility review and independently verify sample values.
-- [ ] Add age 65 after reviewing the at-birth graph.
-- [ ] Revisit IP-based country suggestions: inspect the WordPress embed and hosting/CDN setup, then decide how to pass a country hint to the chart. Saved selection must take priority, followed by IP country, browser locale, and manual selection. Currently only saved selection, locale guessing, and manual selection are implemented.
-- [ ] Revisit the population-weighted 10th percentile definition: compare the current inverse weighted CDF (no interpolation) with linear interpolation between countries' cumulative-population midpoints, using sex-specific weights. Review differences in the actual series before choosing; document the chosen method and test boundaries and ties. The current calculation remains unchanged pending this decision.
-
-- [x] Extend individual historical country series to the earliest available sex-specific observation (Sweden, 1751); retain gaps in reference series and exclude missing population from best-practice eligibility.
-- [ ] Review historical population coverage and geographic comparability before publishing the extended frontier.
-
-- [ ] Resolve the existing IHME attribution mismatch: the stored licence/citation file cites GBD 2016, while metadata identifies GBD 2023 (and the query lists YLDs despite the dataset name all_cause_deaths). Verify against the original download before use; do not infer a replacement citation.

@@ -28,7 +28,7 @@ age groups including 100+. Best-practice eligibility still uses total population
 
 ## Selection and shared URLs
 
-The headline “Show on chart” selector supports countries, source-provided UN regions, and population-weighted percentiles (10, 25, 75, 90). Income groups are excluded from the headline outputs. Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains a follow-up in the plan.
+The headline “Show on chart” selector supports countries, source-provided UN regions, and population-weighted percentiles (10, 25, 75, 90). Income groups are excluded from the headline outputs. Selected lines can be removed individually and are saved in browser local storage. Source aggregates without stable location codes are not offered. Percentiles retain the inverse weighted CDF definition; midpoint interpolation remains undecided.
 
 Headline URL state uses `?show=best,world,DEU,p25&sex=f&start=1950&end=2023`. Sex is `f` or `m`. Best practice and World are always included, even for `show=`. Countries retain their codes (e.g. `DEU`); percentiles retain `p10`, `p25`, `p75`, `p90`. Aliases map to internal data IDs:
 
@@ -61,3 +61,18 @@ The headline plot trims empty years within the requested range and fits the y-ax
 Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. Historical coverage is explained below the chart rather than inside the plot. A persistent note below the chart explains the Best practice population cutoff and limited historical coverage. The footer groups View data, CSV, and JSON actions above the source credit and expandable credits/methodology.
 
 Hover previews omit missing values and prioritize reference lines, showing up to ten entries. Clicking the plot pins a scrollable tooltip of selected lines with available observations; missing observations are currently omitted from both hover and pinned views. Endpoint labels are hover-only and the plot has no keyboard focus outline; annual observations are also available through View data.
+
+## Code boundaries
+
+- `src/charts/headline.js`: startup, data loading, one state update path, and animation-frame scheduling.
+- `headline-state.js`: pure URL/state transitions, visible data bounds, and tooltip entry selection.
+- `headline-controls.js`: selector, year controls, and synchronization from explicit state to the DOM.
+- `headline-renderer.js`: D3 drawing, endpoint layout, tooltips, and a lazily populated data table.
+- `headline.css`: standalone styles copied and tracked by the publication manifest.
+
+The state is `{ sex, selectedSeries, startYear, endYear }`; controls dispatch
+changes rather than owning part of it. Rapid updates are coalesced into one
+animation frame. A visible table updates when its state changes; a hidden table
+is not rebuilt during slider drags or resizes. The SVG is still recreated for
+each scheduled draw; this change does not claim incremental D3 rendering or a
+measured performance improvement.
