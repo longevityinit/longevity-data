@@ -274,9 +274,7 @@ export function createRenderer({ d3, container, model }) {
             label
               .append('small')
               .text(item.row.winners.map((id) => names.get(id) || id).join(', '));
-          entry
-            .append('strong')
-            .text(item.row?.value == null ? 'No data' : `${item.row.value.toFixed(1)} years`);
+          entry.append('strong').text(`${item.row.value.toFixed(1)} years`);
         }
       }
       const availableEntries = entries.filter((item) => item.row?.value != null);

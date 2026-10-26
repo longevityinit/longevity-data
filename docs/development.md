@@ -221,13 +221,13 @@ For data sources, calculation rules, coverage, URL parameters, and chart interac
 
 Node.js 22.13+ and npm are needed only for JavaScript development checks; building
 and serving the static charts still uses Python, with no JavaScript bundler.
-Install the development tools and run the checks. npm may generate a local
-`package-lock.json`, which is ignored by Git; direct versions are fixed in
-`package.json`, but transitive versions are not shared between developers:
+Install the development tools from the committed `package-lock.json`, which
+records exact direct and transitive versions and package integrity hashes:
 
 ```bash
-npm install
+npm ci
 npm test
+npm run lint
 npx playwright install chromium
 npm run test:browser
 ```
@@ -239,6 +239,7 @@ access bucket credentials. The server command uses `python` from your active
 virtual environment; set `PYTHON` to an interpreter path if needed. Linux CI may
 need `npx playwright install --with-deps chromium` for browser system libraries.
 
-New modules and CSS must be included in the chart builder's asset list and publication
+Run `npm run format` after editing the headline JavaScript or CSS. New modules
+and CSS must be included in the chart builder's asset list and publication
 manifest. Browser dependencies are development-only; the published page loads
 native ES modules and the existing D3 asset directly.

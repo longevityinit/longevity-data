@@ -1,83 +1,216 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>A century of unequal progress: life expectancy at birth for women, 1751–2023 · Our Longevity in Data</title>
-  <script defer src="../vendor/d3-7.9.0.min.js"></script>
-  <script type="module" src="headline.js"></script>
-  <link rel="stylesheet" href="headline.css">
-</head>
-<body><main>
-  <div class="eyebrow">Our Longevity in Data</div>
-  <h1 id="chart-title">A century of unequal progress</h1>
-  <p class="subtitle" id="chart-subtitle">Life expectancy at birth · Women · 1751–2023</p>
-  <div class="line-controls">
-    <fieldset class="sex-selector"><legend class="visually-hidden">Sex</legend>
-      <label><input type="radio" name="sex" value="female" checked><span>Women</span></label>
-      <label><input type="radio" name="sex" value="male"><span>Men</span></label>
-    </fieldset>
-  </div>
-  <div class="chart-workspace">
-  <details id="country-picker" open>
-    <summary class="picker-heading"><span>Show on chart</span></summary>
-    <div class="picker-browse">
-      <div class="picker-toolbar">
-        <div class="picker-search"><label class="visually-hidden" for="country-search">Search lines</label><input id="country-search" type="search" placeholder="Search lines…" autocomplete="off"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      A century of unequal progress: life expectancy at birth for women, 1751–2023 · Our Longevity
+      in Data
+    </title>
+    <script defer src="../vendor/d3-7.9.0.min.js"></script>
+    <script type="module" src="headline.js"></script>
+    <link rel="stylesheet" href="headline.css" />
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Our Longevity in Data</div>
+      <h1 id="chart-title">A century of unequal progress</h1>
+      <p class="subtitle" id="chart-subtitle">Life expectancy at birth · Women · 1751–2023</p>
+      <div class="line-controls">
+        <fieldset class="sex-selector">
+          <legend class="visually-hidden">Sex</legend>
+          <label><input type="radio" name="sex" value="female" checked /><span>Women</span></label>
+          <label><input type="radio" name="sex" value="male" /><span>Men</span></label>
+        </fieldset>
       </div>
-      <div class="picker-filters" role="group" aria-label="Filter available lines">
-        <button type="button" data-picker-filter="all" aria-pressed="true">All</button>
-        <button type="button" data-picker-filter="countries" aria-pressed="false">Countries</button>
-        <button type="button" data-picker-filter="regions" aria-pressed="false">Regions</button>
-        <button type="button" data-picker-filter="percentiles" aria-pressed="false">Percentiles</button>
-        <button type="button" data-picker-filter="selected" aria-pressed="false">Selected</button>
+      <div class="chart-workspace">
+        <details id="country-picker" open>
+          <summary class="picker-heading"><span>Show on chart</span></summary>
+          <div class="picker-browse">
+            <div class="picker-toolbar">
+              <div class="picker-search">
+                <label class="visually-hidden" for="country-search">Search lines</label
+                ><input
+                  id="country-search"
+                  type="search"
+                  placeholder="Search lines…"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+            <div class="picker-filters" role="group" aria-label="Filter available lines">
+              <button type="button" data-picker-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-picker-filter="countries" aria-pressed="false">
+                Countries
+              </button>
+              <button type="button" data-picker-filter="regions" aria-pressed="false">
+                Regions
+              </button>
+              <button type="button" data-picker-filter="percentiles" aria-pressed="false">
+                Percentiles
+              </button>
+              <button type="button" data-picker-filter="selected" aria-pressed="false">
+                Selected
+              </button>
+            </div>
+            <div class="picker-clear-selection">
+              <span id="picker-heading-count" aria-live="polite"></span
+              ><button id="clear-countries" type="button">Clear selection</button>
+            </div>
+            <div id="country-list" role="group" aria-label="Available lines"></div>
+            <p id="country-empty" hidden>No matching lines. Try another search or filter.</p>
+          </div>
+          <div class="picker-footer">
+            <p class="picker-selected-note">Best practice and World are always shown.</p>
+          </div>
+        </details>
+        <div class="chart-main">
+          <p id="status" role="status" aria-live="polite">Loading life-expectancy data…</p>
+          <div class="chart-layout">
+            <div id="chart"></div>
+            <div class="year-range" role="group" aria-label="Displayed year range">
+              <div class="range-editor">
+                <label class="year-field year-from"
+                  ><input
+                    class="year-entry"
+                    id="start-value"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="4"
+                    aria-label="Start year entry"
+                /></label>
+                <div
+                  class="timeline"
+                  id="timeline"
+                  title="Double-click the timeline to reset the full range."
+                >
+                  <div class="timeline-track" aria-hidden="true"></div>
+                  <input
+                    id="start-year"
+                    aria-label="Start year"
+                    aria-describedby="range-help"
+                    type="range"
+                    step="1"
+                    list="year-marks"
+                  />
+                  <input
+                    id="end-year"
+                    aria-label="End year"
+                    aria-describedby="range-help"
+                    type="range"
+                    step="1"
+                    list="year-marks"
+                  />
+                </div>
+                <label class="year-field year-to"
+                  ><input
+                    class="year-entry"
+                    id="end-value"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="4"
+                    aria-label="End year entry"
+                /></label>
+              </div>
+              <datalist id="year-marks"></datalist>
+              <span id="range-help" class="visually-hidden"
+                >Use arrow keys to adjust the year. Press Escape to reset the full range. You can
+                also double-click the timeline to reset.</span
+              >
+            </div>
+            <p class="chart-note">
+              Best practice: highest life expectancy among countries and territories with
+              populations over one million, shown from 1850. Historical coverage is limited before
+              1950.
+            </p>
+          </div>
+        </div>
       </div>
-      <div class="picker-clear-selection"><span id="picker-heading-count" aria-live="polite"></span><button id="clear-countries" type="button">Clear selection</button></div>
-      <div id="country-list" role="group" aria-label="Available lines"></div>
-      <p id="country-empty" hidden>No matching lines. Try another search or filter.</p>
-    </div>
-    <div class="picker-footer">
-      <p class="picker-selected-note">Best practice and World are always shown.</p>
-    </div>
-  </details>
-  <div class="chart-main">
-  <p id="status" role="status" aria-live="polite">Loading life-expectancy data…</p>
-  <div class="chart-layout">
-    <div id="chart"></div>
-    <div class="year-range" role="group" aria-label="Displayed year range">
-      <div class="range-editor">
-      <label class="year-field year-from"><input class="year-entry" id="start-value" type="text" inputmode="numeric" maxlength="4" aria-label="Start year entry"></label>
-      <div class="timeline" id="timeline" title="Double-click the timeline to reset the full range.">
-        <div class="timeline-track" aria-hidden="true"></div>
-        <input id="start-year" aria-label="Start year" aria-describedby="range-help" type="range" step="1" list="year-marks">
-        <input id="end-year" aria-label="End year" aria-describedby="range-help" type="range" step="1" list="year-marks">
-      </div>
-      <label class="year-field year-to"><input class="year-entry" id="end-value" type="text" inputmode="numeric" maxlength="4" aria-label="End year entry"></label>
-      </div>
-      <datalist id="year-marks"></datalist>
-      <span id="range-help" class="visually-hidden">Use arrow keys to adjust the year. Press Escape to reset the full range. You can also double-click the timeline to reset.</span>
-    </div>
-    <p class="chart-note">Best practice: highest life expectancy among countries and territories with populations over one million, shown from 1850. Historical coverage is limited before 1950.</p>
-  </div>
-  </div>
-  </div>
-  <footer>
-    <nav class="data-actions" aria-label="Chart data"><button type="button" id="view-data" aria-expanded="false" aria-controls="chart-data">View data</button><span aria-hidden="true">·</span><a href="observations.csv" download>Download CSV</a><span aria-hidden="true">·</span><a href="headline.json" download>Download JSON</a></nav>
-  <div id="chart-data" hidden><div class="table-scroll" tabindex="0"><table>
-    <caption id="table-caption">Annual life expectancy in years</caption>
-    <thead><tr><th scope="col">Year</th><th scope="col">Best practice</th><th scope="col">World life expectancy</th><th scope="col">10th percentile</th></tr></thead><tbody id="values"></tbody>
-  </table></div></div>
-    <p>Source: <a id="source" href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men">HMD, UN World Population Prospects, and historical population via Our World in Data</a>.</p>
-    <details><summary>Data sources and credits</summary>
-      <ul id="data-source-credits"></ul>
-      <p>Data processing by Our World in Data; additional best-practice and population-weighted percentile calculations by The Longevity Initiative. OWID-produced material is available under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; underlying third-party data retain their respective source licences.</p>
-    </details>
-    <details><summary>Methodology and coverage</summary>
-      <p><strong>Percentiles:</strong> the selectable 10th, 25th, 75th, and 90th percentile lines rank countries and territories by life expectancy, then accumulate their female or male populations. Each line is the first country value reaching its selected share of the included population, with no interpolation. Women’s values are weighted by female population, and men’s values by male population. All sizes are included, and aggregates are excluded. Missing life expectancy is excluded and weights are renormalized over available observations. Values start in 1950. This describes country-level life expectancy, not percentiles of individual lifespans, nor the average within the bottom group. Large countries can produce jumps.</p>
-      <p>This first version covers 1751–2023, at birth, separately for females and males. It excludes projections. Countries and territories are the export's locations with an OWID world-region assignment; regional and income aggregates are excluded from country calculations.</p>
-      <p><strong>Best practice:</strong> the highest value among countries and territories with a recorded total population strictly above one million in that year. Best practice is shown from 1850 onward; at least two eligible locations with life expectancy observations are required for each year and sex. Country observations with missing population are still available individually but excluded from best practice; no population values are interpolated. Ties retain every winning location. <strong>World life expectancy:</strong> the sex-specific World series supplied by UN WPP through OWID, used directly without averaging country values.</p>
-      <p>Missing values remain gaps; no interpolation is applied. Changing country coverage can affect the frontier. The earliest sex-specific observations are for Sweden in 1751; before 1800 Sweden is the only included location, and historical population is missing for most years. Before 1950, only a small, changing set of countries has observations: the World series therefore starts in 1950. Historical population uses OWID’s current-border estimates, while HMD historical mortality coverage may differ; historical frontier eligibility needs further geographic review before publication. UK constituent areas without country IDs are excluded. This is a local first version; age 65 is not included.</p>
-    </details>
-  </footer>
-</main></body>
+      <footer>
+        <nav class="data-actions" aria-label="Chart data">
+          <button type="button" id="view-data" aria-expanded="false" aria-controls="chart-data">
+            View data</button
+          ><span aria-hidden="true">·</span><a href="observations.csv" download>Download CSV</a
+          ><span aria-hidden="true">·</span><a href="headline.json" download>Download JSON</a>
+        </nav>
+        <div id="chart-data" hidden>
+          <div class="table-scroll" tabindex="0">
+            <table>
+              <caption id="table-caption">
+                Annual life expectancy in years
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Year</th>
+                  <th scope="col">Best practice</th>
+                  <th scope="col">World life expectancy</th>
+                  <th scope="col">10th percentile</th>
+                </tr>
+              </thead>
+              <tbody id="values"></tbody>
+            </table>
+          </div>
+        </div>
+        <p>
+          Source:
+          <a
+            id="source"
+            href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men"
+            >HMD, UN World Population Prospects, and historical population via Our World in Data</a
+          >.
+        </p>
+        <details>
+          <summary>Data sources and credits</summary>
+          <ul id="data-source-credits"></ul>
+          <p>
+            Data processing by Our World in Data; additional best-practice and population-weighted
+            percentile calculations by The Longevity Initiative. OWID-produced material is available
+            under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; underlying
+            third-party data retain their respective source licences.
+          </p>
+        </details>
+        <details>
+          <summary>Methodology and coverage</summary>
+          <p>
+            <strong>Percentiles:</strong> the selectable 10th, 25th, 75th, and 90th percentile lines
+            rank countries and territories by life expectancy, then accumulate their female or male
+            populations. Each line is the first country value reaching its selected share of the
+            included population, with no interpolation. Women’s values are weighted by female
+            population, and men’s values by male population. All sizes are included, and aggregates
+            are excluded. Missing life expectancy is excluded and weights are renormalized over
+            available observations. Values start in 1950. This describes country-level life
+            expectancy, not percentiles of individual lifespans, nor the average within the bottom
+            group. Large countries can produce jumps.
+          </p>
+          <p>
+            This first version covers 1751–2023, at birth, separately for females and males. It
+            excludes projections. Countries and territories are the export's locations with an OWID
+            world-region assignment; regional and income aggregates are excluded from country
+            calculations.
+          </p>
+          <p>
+            <strong>Best practice:</strong> the highest value among countries and territories with a
+            recorded total population strictly above one million in that year. Best practice is
+            shown from 1850 onward; at least two eligible locations with life expectancy
+            observations are required for each year and sex. Country observations with missing
+            population are still available individually but excluded from best practice; no
+            population values are interpolated. Ties retain every winning location.
+            <strong>World life expectancy:</strong> the sex-specific World series supplied by UN WPP
+            through OWID, used directly without averaging country values.
+          </p>
+          <p>
+            Missing values remain gaps; no interpolation is applied. Changing country coverage can
+            affect the frontier. The earliest sex-specific observations are for Sweden in 1751;
+            before 1800 Sweden is the only included location, and historical population is missing
+            for most years. Before 1950, only a small, changing set of countries has observations:
+            the World series therefore starts in 1950. Historical population uses OWID’s
+            current-border estimates, while HMD historical mortality coverage may differ; historical
+            frontier eligibility needs further geographic review before publication. UK constituent
+            areas without country IDs are excluded. This is a local first version; age 65 is not
+            included.
+          </p>
+        </details>
+      </footer>
+    </main>
+  </body>
 </html>

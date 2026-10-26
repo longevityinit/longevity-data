@@ -30,7 +30,10 @@ class HeadlineBuildTests(unittest.TestCase):
             def vendor_assets(directory):
                 directory.mkdir(parents=True, exist_ok=True)
                 for name in (builder.D3_FILENAME, 'd3-7.9.0.txt', 'd3-7.9.0-dependencies.txt'):
-                    (directory / name).write_text('fixture')
+                    if name == 'd3-7.9.0-dependencies.txt':
+                        shutil.copy2(ROOT / 'licenses' / name, directory / name)
+                    else:
+                        (directory / name).write_text('fixture')
 
             with patch.object(builder, 'ROOT', root), patch.object(builder, 'ensure_vendor_assets', vendor_assets):
                 builder.main()
@@ -40,6 +43,13 @@ class HeadlineBuildTests(unittest.TestCase):
             for asset in ('headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css'):
                 self.assertIn(asset, verified)
                 self.assertEqual((directory / asset).read_bytes(), (ROOT / 'src/charts' / asset).read_bytes())
+            notice = root / 'output/charts/vendor/d3-7.9.0-dependencies.txt'
+            self.assertIn(notice.name, verified)
+            self.assertEqual(notice.read_bytes(), (ROOT / 'licenses' / notice.name).read_bytes())
+            notice_text = notice.read_text(encoding='utf-8')
+            self.assertIn('Copyright 2002 Cynthia Brewer', notice_text)
+            self.assertIn('END OF TERMS AND CONDITIONS', notice_text)
+            self.assertIn('APPENDIX: How to apply the Apache License', notice_text)
             (directory / 'headline.css').write_text('changed after build')
             with self.assertRaises(ValueError):
                 validate_manifest(manifest)
