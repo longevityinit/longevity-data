@@ -35,6 +35,7 @@ test('keyboard range editing, handle boundaries, reset and the lazy table', asyn
   await start.press('Enter');
   await expect(page).toHaveURL(/start=2000/);
   const handle = page.getByRole('slider', { name: 'Start year', exact: true });
+  await expect(handle).toHaveValue('2000');
   await handle.focus();
   await handle.press('ArrowRight');
   await expect(page).toHaveURL(/start=2001/);
@@ -135,4 +136,20 @@ test('dragging the paired slider snaps to a preset without eagerly building the 
   await expect(page).toHaveURL(/end=1951/);
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/end=2023/);
+});
+
+test('queued redraws preserve an uncommitted year edit', async ({ page }) => {
+  await loaded(page);
+  const start = page.getByRole('textbox', { name: 'Start year entry' });
+  await start.focus();
+  await page.evaluate(() => {
+    document.getElementById('start-value').value = '2010';
+    window.dispatchEvent(new window.Event('resize'));
+  });
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  await expect(start).toHaveValue('2010');
+  await start.press('Enter');
+  await expect(page).toHaveURL(/start=2010/);
 });
