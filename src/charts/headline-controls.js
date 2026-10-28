@@ -166,6 +166,7 @@ export function mountControls({ model, getState, update, onTableToggle }) {
       if (/^\d{4}$/.test(field.value.trim())) {
         const year = Math.max(data.start_year, Math.min(data.end_year, Number(field.value)));
         update({ type: 'year', edge: isStart ? 'start' : 'end', year });
+        field.value = isStart ? getState().startYear : getState().endYear;
       } else {
         field.value = isStart ? getState().startYear : getState().endYear;
       }
@@ -240,8 +241,14 @@ export function mountControls({ model, getState, update, onTableToggle }) {
       } else if (presets.includes(year))
         timeline.querySelector(`[data-year="${year}"]`).hidden = true;
     }
-    document.getElementById('start-value').value = state.startYear;
-    document.getElementById('end-value').value = state.endYear;
+    for (const [id, year] of [
+      ['start-value', state.startYear],
+      ['end-value', state.endYear],
+    ]) {
+      const field = document.getElementById(id);
+      // A queued redraw must not replace an edit that has not been committed.
+      if (document.activeElement !== field) field.value = year;
+    }
     const endValues = new Map(
       view.rows.filter((row) => row.year === view.plotEnd).map((row) => [row.series, row.value]),
     );

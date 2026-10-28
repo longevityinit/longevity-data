@@ -137,3 +137,19 @@ test('dragging the paired slider snaps to a preset without eagerly building the 
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/end=2023/);
 });
+
+test('queued redraws preserve an uncommitted year edit', async ({ page }) => {
+  await loaded(page);
+  const start = page.getByRole('textbox', { name: 'Start year entry' });
+  await start.focus();
+  await page.evaluate(() => {
+    document.getElementById('start-value').value = '2010';
+    window.dispatchEvent(new window.Event('resize'));
+  });
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  await expect(start).toHaveValue('2010');
+  await start.press('Enter');
+  await expect(page).toHaveURL(/start=2010/);
+});
