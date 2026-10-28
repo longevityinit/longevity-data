@@ -249,12 +249,21 @@ native ES modules and the existing D3 asset directly.
 
 `.github/workflows/checks.yml` runs Python tests, JavaScript tests, ESLint,
 read-only Prettier checks, and Chromium browser tests on pull requests and pushes
-to `main`. It can also be run manually from GitHub Actions. It uses Python 3.10
-and Node.js 22 on a standard Ubuntu runner. Superseded runs are cancelled and
-each run has a 15-minute timeout.
+to `main`. It can also be run manually from GitHub Actions. Python, JavaScript,
+and browser checks run as three independent jobs on standard Ubuntu runners.
+Python uses version 3.10; JavaScript checks use Node.js 22. Superseded runs are
+cancelled and each job has a 15-minute timeout.
 
-The workflow installs locked dependencies and Chromium, and downloads only the
-pinned D3 browser asset with SHA-256 verification for deterministic fixture tests.
+The browser job runs in the official Playwright 1.64.1 Noble container, pinned
+by image digest. It uses the image's Node.js and preinstalled browsers/system
+libraries, plus Python 3.10 for the standard-library fixture server. It installs
+locked npm dependencies and checks that the Playwright package matches the image
+version. Browser tests use one worker in CI and a five-minute suite timeout,
+within the job's 15-minute limit. There is no per-run apt or browser installation.
+The only chart input download is pinned D3, verified with SHA-256, for deterministic fixture tests.
+When updating Playwright, update its package/lockfile, image tag/digest, and
+version check together. Measure complete job time, including the image pull,
+on the next Actions run; local test timings do not establish a CI speedup.
 It does not download production datasets, run publication commands, or use
 repository secrets or bucket credentials. Checkout credentials are not persisted;
 the workflow token has read-only repository access.

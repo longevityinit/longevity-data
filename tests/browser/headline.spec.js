@@ -35,6 +35,7 @@ test('keyboard range editing, handle boundaries, reset and the lazy table', asyn
   await start.press('Enter');
   await expect(page).toHaveURL(/start=2000/);
   const handle = page.getByRole('slider', { name: 'Start year', exact: true });
+  await expect(handle).toHaveValue('2000');
   await handle.focus();
   await handle.press('ArrowRight');
   await expect(page).toHaveURL(/start=2001/);
