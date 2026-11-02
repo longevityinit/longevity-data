@@ -6,7 +6,8 @@
     "test": "node --test tests/js/*.test.js",
     "test:browser": "playwright test",
     "lint": "eslint src/charts/headline*.js tests/js tests/browser playwright.config.js",
-    "format": "prettier --write 'src/charts/headline*.js' src/charts/headline.css src/pipeline/charts/templates/headline.html tests/js tests/browser playwright.config.js eslint.config.js"
+    "format": "prettier --write 'src/charts/headline*.js' src/charts/headline.css src/pipeline/charts/templates/headline.html tests/js tests/browser playwright.config.js eslint.config.js",
+    "format:check": "prettier --check 'src/charts/headline*.js' src/charts/headline.css src/pipeline/charts/templates/headline.html tests/js tests/browser playwright.config.js eslint.config.js"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
