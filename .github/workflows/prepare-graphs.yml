@@ -1,0 +1,54 @@
+name: Prepare graphs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-graphs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Install locked dependencies
+        run: python -m pip install -r requirements.txt -r requirements.lock.txt
+      - name: Restore the selected data snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          release=$(python src/pipeline/pages_snapshot.py selected-release)
+          mkdir -p output
+          gh release download --pattern snapshot.tar.gz --dir output -- "$release"
+          python src/pipeline/pages_snapshot.py restore --archive output/snapshot.tar.gz
+      - name: Calculate and build from selected data
+        run: |
+          set -euo pipefail
+          python src/pipeline/indicators/headline.py
+          python src/pipeline/charts/headline.py
+          python src/pipeline/pages.py build --manifest output/charts/headline-life-expectancy/publish.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: graphs-${{ github.run_attempt }}
+          path: output/graphs.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report prepared build
+        run: |
+          echo "Prepared graphs for commit $GITHUB_SHA using the committed data selection. Nothing was deployed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Run Deploy graphs with build run ID $GITHUB_RUN_ID to publish this build within 14 days." >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,59 @@
+name: Refresh graph data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-graph-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Install locked dependencies
+        run: python -m pip install -r requirements.txt -r requirements.lock.txt
+      - name: Download a new candidate snapshot and build review graphs
+        run: |
+          set -euo pipefail
+          version="$(date -u +%F)-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python src/pipeline/download/owid/headline.py --version "$version"
+          python src/pipeline/indicators/headline.py
+          python src/pipeline/charts/headline.py
+          python src/pipeline/pages.py build --candidate --manifest output/charts/headline-life-expectancy/publish.json
+          python src/pipeline/pages_snapshot.py prepare --release "graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Preserve the candidate source snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          gh release create "$tag" output/snapshot.tar.gz output/adopt-snapshot.zip \
+            --target "$GITHUB_SHA" --prerelease --title "Candidate graph data $tag" \
+            --notes 'Source data candidate for review. Not selected for main builds and not deployed to Pages. Review the graph artifact, then adopt the provenance and selection files through a pull request.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-review-${{ github.run_attempt }}
+          path: |
+            output/graphs.tar.gz
+            output/adopt-snapshot.zip
+          if-no-files-found: error
+          retention-days: 14
+      - name: Explain review and adoption
+        run: |
+          echo "New data candidate: graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT. Nothing was deployed or selected." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Download data-review to inspect the graphs locally. Review coverage, calculations, and source metadata. Apply adopt-snapshot.zip in a clean checkout and open a PR with only its config/ and data/ files. Merging that PR selects the snapshot and triggers Prepare graphs.' >> "$GITHUB_STEP_SUMMARY"
