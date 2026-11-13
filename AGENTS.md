@@ -30,6 +30,7 @@ Choose checks based on the change, and report anything not run. Test observable 
 - Keep CI on standard GitHub-hosted Ubuntu runners, which are free for this public repository. Preserve timeouts and cancellation of superseded runs. Avoid paid runners and unnecessary artifact or cache storage.
 - Keep publication, production-data downloads, repository secrets, and bucket credentials out of this checks workflow. Use read-only repository permissions and do not persist checkout credentials.
 - Browser checks need only deterministic fixture observations and the pinned D3 asset. Verify its checksum; do not run the production download/build pipeline to prepare browser tests.
+- Graph review hosting uses separate Prepare graphs, Refresh graph data, and Deploy graphs workflows. Merges reuse the committed snapshot selection; only an explicit refresh downloads new source data. Adopt candidates through reviewed provenance changes, and deploy only a successful prepared main build. See [graph hosting](docs/graph-hosting.md).
 - Keep documented local commands and CI checks aligned. Report local verification separately from an actual successful GitHub Actions run.
 
 ## Reviews

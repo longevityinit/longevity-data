@@ -36,3 +36,24 @@ class HeadlineDownloadTests(unittest.TestCase):
                 self.assertEqual(current['version'], datetime.date.today().isoformat())
                 self.assertEqual(current['etag'], 'etag')
                 self.assertTrue(current['csv_hash'])
+
+    def test_explicit_versions_keep_same_day_refreshes_distinct_and_preserve_download_date(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.object(module, 'ROOT', root), patch.object(
+                module, 'download_owid_chart_data', return_value=(b'fixture', {}, 'etag')
+            ) as fetch:
+                module.download('headline', 'fixture', '2026-11-13-123-1')
+                module.download('headline', 'fixture', '2026-11-13-123-2')
+                self.assertEqual(fetch.call_count, 2)
+            directory = root / 'output/data/snapshots/owid/headline'
+            self.assertTrue((directory / '2026-11-13-123-1/headline.csv').exists())
+            record = yaml.safe_load((directory / '2026-11-13-123-2/headline.meta.yaml').read_text())
+            self.assertEqual(record['download_date'], datetime.date.today().isoformat())
+            self.assertEqual(yaml.safe_load((directory / 'current.yaml').read_text())['version'], '2026-11-13-123-2')
+
+    def test_unsafe_version_fails_before_network_or_file_writes(self):
+        with patch.object(module, 'download_owid_chart_data') as fetch:
+            with self.assertRaises(ValueError):
+                module.download('headline', 'fixture', '../escape')
+            fetch.assert_not_called()
