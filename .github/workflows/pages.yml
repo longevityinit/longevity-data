@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       build_run:
-        description: 'Successful Prepare graphs run ID from main (artifact retained for 14 days)'
-        required: true
+        description: 'Optional rollback run ID; leave blank to deploy current main'
+        required: false
         type: string
 
 permissions:
@@ -35,16 +35,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           BUILD_RUN: ${{ inputs.build_run }}
+          EXPECTED_REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
-          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
           mkdir -p output/prepared
-          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN" > output/run.json
+          automatic=false
+          if [[ -z "$BUILD_RUN" ]]; then
+            automatic=true
+            current=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+            if [[ "$current" != "$EXPECTED_REVISION" ]]; then
+              echo 'main changed while deployment was queued. Run Deploy graphs again.' >&2
+              exit 1
+            fi
+            gh api --paginate --slurp "repos/$GH_REPO/actions/workflows/prepare-graphs.yml/runs?branch=main&head_sha=$EXPECTED_REVISION&per_page=100" > output/runs.json
+            python src/pipeline/pages_snapshot.py select-run --runs output/runs.json \
+              --repository "$GH_REPO" --revision "$EXPECTED_REVISION" > output/run.json
+            BUILD_RUN=$(python -c 'import json; print(json.load(open("output/run.json"))["id"])')
+          else
+            [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+            gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN" > output/run.json
+          fi
           python src/pipeline/pages_snapshot.py validate-run --run output/run.json --repository "$GH_REPO" > output/run.env
           source output/run.env
           gh run download "$BUILD_RUN" --name "graphs-$attempt" --dir output/prepared
           python src/pipeline/pages.py unpack --archive output/prepared/graphs.tar.gz \
             --destination output/pages --revision "$revision"
+          if [[ "$automatic" == true ]]; then
+            current=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+            [[ "$current" == "$revision" ]] || { echo 'main changed; run Deploy graphs again.' >&2; exit 1; }
+          fi
+          echo "Selected prepared run $BUILD_RUN, attempt $attempt, commit $revision. No rebuild or data refresh." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v4
         with:
           path: output/pages

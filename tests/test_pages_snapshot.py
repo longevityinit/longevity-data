@@ -14,6 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src/pipeline'))
 import pages_snapshot
+import pages_review
 from utils.publication import snapshot_manifest, write_manifest
 
 
@@ -101,6 +102,36 @@ class SnapshotTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
             pages_snapshot.prepare('graph-data-124-1', self.root)
 
+    def test_adoption_application_accepts_only_selected_provenance(self):
+        target = Path(self.temporary.name) / 'adoption'
+        target.mkdir()
+        pages_review.apply_adoption(self.root / 'output/adopt-snapshot.zip', target)
+        self.assertEqual((target / 'config/pages-snapshot.json').read_bytes(),
+                         (self.consumer / 'config/pages-snapshot.json').read_bytes())
+        self.assertEqual(len(list(target.rglob('*.meta.yaml'))), 5)
+        self.assertFalse(list(target.rglob('*.csv')))
+
+    def test_adoption_unrelated_paths_and_conflicts_fail_before_changes(self):
+        original = self.root / 'output/adopt-snapshot.zip'
+        for extra in ('../escape', '.github/workflows/injected.yml'):
+            with self.subTest(extra=extra):
+                malicious = self.root / 'output/malicious.zip'
+                shutil.copyfile(original, malicious)
+                with zipfile.ZipFile(malicious, 'a') as bundle:
+                    bundle.writestr(extra, 'unrelated')
+                destination = Path(self.temporary.name) / 'rejected'
+                destination.mkdir(exist_ok=True)
+                with self.assertRaises(ValueError):
+                    pages_review.apply_adoption(malicious, destination)
+                self.assertFalse(list(destination.iterdir()))
+        immutable = next((self.consumer / 'data').rglob('*.meta.yaml'))
+        immutable.write_text('conflicting metadata')
+        config = self.consumer / 'config/pages-snapshot.json'
+        config.write_text('unchanged sentinel')
+        with self.assertRaisesRegex(ValueError, 'immutable provenance'):
+            pages_review.apply_adoption(original, self.consumer)
+        self.assertEqual(config.read_text(), 'unchanged sentinel')
+
 
 class PreparedRunTests(unittest.TestCase):
     def test_accept_only_successful_main_preparation_runs(self):
@@ -116,6 +147,55 @@ class PreparedRunTests(unittest.TestCase):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):
                     pages_snapshot.validate_prepared_run(dict(run, **{key: value}), 'owner/repo')
+
+
+class AutomaticRunTests(unittest.TestCase):
+    def run_record(self, run_id=2, sha='a' * 40, **overrides):
+        return dict({'id': run_id, 'path': '.github/workflows/prepare-graphs.yml',
+                     'head_branch': 'main', 'head_sha': sha, 'event': 'push',
+                     'status': 'completed', 'conclusion': 'success',
+                     'head_repository': {'full_name': 'owner/repo'}, 'run_attempt': 1}, **overrides)
+
+    def test_current_commit_is_selected_even_when_other_commits_are_newer(self):
+        records = [self.run_record(1), self.run_record(9, 'b' * 40), self.run_record(3, run_attempt=2)]
+        selected = pages_snapshot.select_prepared_run(records, 'owner/repo', 'a' * 40)
+        self.assertEqual((selected['id'], selected['run_attempt']), (3, 2))
+
+    def test_old_success_is_not_a_fallback_for_missing_or_failed_current_main(self):
+        old = self.run_record(1, 'b' * 40)
+        with self.assertRaisesRegex(ValueError, 'No prepared build'):
+            pages_snapshot.select_prepared_run([old], 'owner/repo', 'a' * 40)
+        for state in ({'status': 'in_progress', 'conclusion': None}, {'conclusion': 'failure'},
+                      {'conclusion': 'cancelled'}, {'head_repository': {'full_name': 'foreign/repo'}}):
+            with self.subTest(state=state):
+                with self.assertRaisesRegex(ValueError, 'not successful'):
+                    pages_snapshot.select_prepared_run([old, self.run_record(2), self.run_record(3, **state)], 'owner/repo', 'a' * 40)
+
+    def test_foreign_workflows_and_pull_requests_are_not_candidates(self):
+        records = [self.run_record(3, path='.github/workflows/refresh-graph-data.yml'),
+                   self.run_record(4, event='pull_request')]
+        with self.assertRaisesRegex(ValueError, 'No prepared build'):
+            pages_snapshot.select_prepared_run(records, 'owner/repo', 'a' * 40)
+
+
+class DataReviewTests(unittest.TestCase):
+    def graph(self, rows):
+        return {'start_year': 1950, 'end_year': 2023, 'rows': [
+            {'sex': 'female', 'year': year, 'series': 'USA', 'value': value} for year, value in rows]}
+
+    def test_report_distinguishes_changes_added_removed_and_missing(self):
+        before = self.graph([(1950, 70), (1951, 71), (1952, None), (1953, 74)])
+        after = self.graph([(1950, 72), (1951, None), (1952, 73), (1954, 75)])
+        report = pages_review.summarize(before, after)
+        self.assertIn('Changed values: **3**', report)
+        self.assertIn('Added rows: **1**; removed rows: **1**', report)
+        self.assertIn('Newly missing values: **1**; newly available values: **1**', report)
+        self.assertIn('**2 years**', report)
+
+    def test_report_has_an_explicit_first_snapshot_case(self):
+        self.assertIn('No previous selected snapshot', pages_review.summarize(None, self.graph([(1950, 70)])))
+        with self.assertRaises(ValueError):
+            pages_review.summarize(None, self.graph([(1950, 70), (1950, 71)]))
 
 
 if __name__ == '__main__':
