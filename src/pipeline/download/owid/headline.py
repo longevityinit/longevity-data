@@ -21,10 +21,13 @@ SOURCES = {
 }
 
 
-def download(dataset, slug):
+def download(dataset, slug, version=None):
     data = ROOT / 'output/data'
     directory = data / 'snapshots/owid' / dataset
-    version = datetime.date.today().isoformat()
+    today = datetime.date.today().isoformat()
+    version = version or today
+    if not version or any(character not in '0123456789-' for character in version):
+        raise ValueError('Snapshot version must contain only digits and hyphens')
     target = directory / version
     if target.exists():
         snapshot_manifest(target, data)
@@ -35,7 +38,7 @@ def download(dataset, slug):
     csv_bytes, metadata, etag = download_owid_chart_data(slug)
     json_bytes = json.dumps(metadata, ensure_ascii=False).encode('utf-8')
     record = {
-        'dataset': dataset, 'source': 'owid', 'download_date': version,
+        'dataset': dataset, 'source': 'owid', 'download_date': today,
         'original_url': f'https://ourworldindata.org/grapher/{slug}', 'etag': etag,
         'checksums': {'csv_xxh3_64': xxhash.xxh3_64_hexdigest(csv_bytes),
                       'json_xxh3_64': xxhash.xxh3_64_hexdigest(json_bytes)},
@@ -59,5 +62,9 @@ def write_current(directory, version, record):
 
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--version', help='Unique snapshot version; defaults to today')
+    args = parser.parse_args()
     for dataset, slug in SOURCES.items():
-        download(dataset, slug)
+        download(dataset, slug, args.version)

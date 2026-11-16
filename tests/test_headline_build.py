@@ -21,6 +21,7 @@ class HeadlineBuildTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             shutil.copytree(ROOT / 'src/charts', root / 'src/charts')
+            shutil.copytree(ROOT / 'src/pipeline/charts/templates', root / 'src/pipeline/charts/templates')
             source = root / 'output/data/standardised/owid/headline'
             source.mkdir(parents=True)
             (source / 'headline.json').write_text('{"rows": []}')

@@ -270,3 +270,8 @@ the workflow token has read-only repository access.
 
 Standard GitHub-hosted runners are free for this public repository. No caches or
 artifacts are uploaded. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+## Share graphs online
+
+See [Graph hosting](graph-hosting.md) for graph preparation on merges, deliberate data
+refresh/adoption, manual GitHub Pages deployment, and local site preview.
