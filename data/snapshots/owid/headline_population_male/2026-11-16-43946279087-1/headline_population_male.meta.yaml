@@ -1,0 +1,8 @@
+dataset: headline_population_male
+source: owid
+download_date: '2026-11-16'
+original_url: https://ourworldindata.org/grapher/male-population-by-age-group
+etag: null
+checksums:
+  csv_xxh3_64: 77661382a6f56561
+  json_xxh3_64: 4bbbbf1677364f5d
