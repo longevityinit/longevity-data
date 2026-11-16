@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "release": "graph-data-43946279087-1",
+  "sha256": "1f460370cedb5b7ba8c4980e91006b8f6ac2022b134c27cc8427b49bb01ce645",
+  "source_revision": "56d32180fffdf6600083bcfaa06c218669d7e88f",
+  "snapshots": {
+    "headline": {
+      "version": "2026-11-16-43946279087-1",
+      "download_date": "2026-11-16"
+    },
+    "headline_history": {
+      "version": "2026-11-16-43946279087-1",
+      "download_date": "2026-11-16"
+    },
+    "headline_population": {
+      "version": "2026-11-16-43946279087-1",
+      "download_date": "2026-11-16"
+    },
+    "headline_population_female": {
+      "version": "2026-11-16-43946279087-1",
+      "download_date": "2026-11-16"
+    },
+    "headline_population_male": {
+      "version": "2026-11-16-43946279087-1",
+      "download_date": "2026-11-16"
+    }
+  }
+}
