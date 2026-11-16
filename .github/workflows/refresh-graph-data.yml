@@ -2,6 +2,12 @@ name: Refresh graph data
 
 on:
   workflow_dispatch:
+    inputs:
+      create_pr:
+        description: 'Open an adoption PR automatically (requires repository permission)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -26,6 +32,20 @@ jobs:
           python-version: '3.10'
       - name: Install locked dependencies
         run: python -m pip install -r requirements.txt -r requirements.lock.txt
+      - name: Calculate the previously selected data for comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          if [[ -f config/pages-snapshot.json ]]; then
+            release=$(python src/pipeline/pages_snapshot.py selected-release)
+            gh release download --pattern snapshot.tar.gz --dir output -- "$release"
+            python src/pipeline/pages_snapshot.py restore --archive output/snapshot.tar.gz
+            python src/pipeline/indicators/headline.py
+            cp output/data/standardised/owid/headline/headline.json output/previous-headline.json
+          fi
       - name: Download a new candidate snapshot and build review graphs
         run: |
           set -euo pipefail
@@ -35,6 +55,8 @@ jobs:
           python src/pipeline/charts/headline.py
           python src/pipeline/pages.py build --candidate --manifest output/charts/headline-life-expectancy/publish.json
           python src/pipeline/pages_snapshot.py prepare --release "graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python src/pipeline/pages_review.py report --previous output/previous-headline.json \
+            --candidate output/data/standardised/owid/headline/headline.json --output output/data-review.md
       - name: Preserve the candidate source snapshot
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,9 +73,58 @@ jobs:
           path: |
             output/graphs.tar.gz
             output/adopt-snapshot.zip
+            output/data-review.md
           if-no-files-found: error
           retention-days: 14
-      - name: Explain review and adoption
+      - name: Explain manual adoption
+        if: ${{ !inputs.create_pr }}
         run: |
-          echo "New data candidate: graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT. Nothing was deployed or selected." >> "$GITHUB_STEP_SUMMARY"
-          echo 'Download data-review to inspect the graphs locally. Review coverage, calculations, and source metadata. Apply adopt-snapshot.zip in a clean checkout and open a PR with only its config/ and data/ files. Merging that PR selects the snapshot and triggers Prepare graphs.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT is ready for review. Nothing was selected or deployed." >> "$GITHUB_STEP_SUMMARY"
+          echo 'Automatic PR creation is off. Download the data-review artifact for the change report and adoption files, or ask a maintainer to prepare the adoption PR. No PR-creation permission is needed for this refresh.' >> "$GITHUB_STEP_SUMMARY"
+
+  adoption_pr:
+    name: Open adoption PR (optional)
+    needs: refresh
+    if: github.ref == 'refs/heads/main' && inputs.create_pr
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Install locked dependencies
+        run: python -m pip install -r requirements.txt -r requirements.lock.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: data-review-${{ github.run_attempt }}
+          path: output
+      - name: Open the data-adoption pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          branch="chore/graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python src/pipeline/pages_review.py apply --archive output/adopt-snapshot.zip
+          git switch -c "$branch"
+          git add config/pages-snapshot.json data/snapshots/owid
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "chore: refresh graph data ($GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT)"
+          git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+            push "https://github.com/$GH_REPO.git" "$branch"
+          printf '\nCandidate release: graph-data-%s-%s. [Review graphs](%s/%s/actions/runs/%s) before merging.\n' \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$GITHUB_SERVER_URL" "$GH_REPO" "$GITHUB_RUN_ID" >> output/data-review.md
+          if ! pr_url=$(gh pr create --base main --head "$branch" \
+              --title "chore: refresh graph data ($GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT)" \
+              --body-file output/data-review.md); then
+            echo 'Could not open the adoption PR. Check Settings → Actions → General → Allow GitHub Actions to create and approve pull requests. The candidate release, branch and review artifact remain available.' >&2
+            exit 1
+          fi
+          echo "Review and merge the adoption PR: $pr_url. Nothing was deployed or selected." >> "$GITHUB_STEP_SUMMARY"
+          echo 'If GitHub asks for approval to run PR checks, approve them before merging. No workflow-dispatch permission is granted to this job.' >> "$GITHUB_STEP_SUMMARY"

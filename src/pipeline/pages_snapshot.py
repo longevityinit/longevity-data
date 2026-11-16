@@ -110,6 +110,25 @@ def validate_prepared_run(run: dict, repository: str) -> tuple[str, int]:
     return sha, attempt
 
 
+def select_prepared_run(runs: list[dict], repository: str, expected_revision: str) -> dict:
+    """Choose the latest preparation for this commit; never fall back to old code."""
+    matching = [run for run in runs
+                if run.get('path') == '.github/workflows/prepare-graphs.yml'
+                and run.get('head_branch') == 'main'
+                and run.get('head_sha') == expected_revision
+                and run.get('event') in ('push', 'workflow_dispatch')]
+    if not matching:
+        raise ValueError('No prepared build for current main. Run Prepare graphs and wait for success.')
+    if any(type(run.get('id')) is not int or run['id'] < 1 for run in matching):
+        raise ValueError('Invalid preparation run ID')
+    selected = max(matching, key=lambda run: run['id'])
+    try:
+        validate_prepared_run(selected, repository)
+    except ValueError as error:
+        raise ValueError('The latest preparation for current main is not successful. Wait for it or rerun Prepare graphs.') from error
+    return selected
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -121,6 +140,10 @@ if __name__ == '__main__':
     validate = commands.add_parser('validate-run')
     validate.add_argument('--run', type=Path, required=True)
     validate.add_argument('--repository', required=True)
+    select_run = commands.add_parser('select-run')
+    select_run.add_argument('--runs', type=Path, required=True)
+    select_run.add_argument('--repository', required=True)
+    select_run.add_argument('--revision', required=True)
     args = parser.parse_args()
     if args.command == 'prepare':
         prepare(args.release)
@@ -135,6 +158,10 @@ if __name__ == '__main__':
         if not release.startswith('graph-data-') or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-' for c in release):
             parser.error('Invalid selected snapshot release')
         print(release)
+    elif args.command == 'select-run':
+        pages = json.loads(args.runs.read_text(encoding='utf-8'))
+        runs = [run for page in pages for run in page['workflow_runs']]
+        print(json.dumps(select_prepared_run(runs, args.repository, args.revision)))
     else:
         sha, attempt = validate_prepared_run(json.loads(args.run.read_text(encoding='utf-8')), args.repository)
         print(f'revision={sha}\nattempt={attempt}')
