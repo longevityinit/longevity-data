@@ -10,7 +10,7 @@ life expectancy, historical population, and female/male population by age. The i
 joins historical population by location code and year, and calculates summaries.
 All five snapshot dependencies are pinned in the publication manifest.
 
-The first version covers 1751–2023 at birth, beginning with Sweden; the available range is derived from the stored observations. Before 1950 it includes only historical
+The birth chart covers 1751–2023 at birth, beginning with Sweden; the available range is derived from the stored observations. Before 1950 it includes only historical
 locations that match the modern country/territory universe. Coverage is sparse;
 the World series starts in 1950 to avoid presenting the
 early sample as globally representative. Recorded population must
@@ -18,8 +18,9 @@ be strictly above one million for frontier eligibility; all tied winners are
 retained. Best practice starts in 1850 and requires at least two eligible locations with observations for that year and sex; otherwise it remains blank. Country observations with missing historical population remain available individually but are excluded from frontier eligibility. There is no population interpolation; most years before 1800 lack a matching population observation.
 
 The generated JSON records the number of missing historical country-years. Only selected series are plotted. Missing values
-are not interpolated. Historical population is based on current borders; its
-compatibility with historical mortality territories needs review before publishing.
+are not interpolated. Historical population uses present-day borders, which may differ from the territories
+in historical mortality records. The review of this limitation is tracked in the
+[implementation plan](plan.md).
 
 ## Percentiles
 
@@ -49,7 +50,6 @@ Legacy `lines`, internal IDs, `sex=female|male`, and `country=DEU` links remain 
 
 The year-range controls serialize `start` and `end` in the URL. State, URL, and controls use the same bounds for the selected lines and sex. Requested ranges outside that coverage reset to the full available range; partly overlapping ranges are clamped. Reversed/equal bounds also reset to the available range. Slider bounds follow the full non-missing data range of the selected lines and sex. Adding earlier or later series expands the timeline; zooming does not shrink its bounds. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range.
 
-
 The headline chart plots selected series only; unselected countries are not drawn in the background.
 
 ## Labels, tooltips, and selector
@@ -58,7 +58,7 @@ Endpoint label behavior: endpoint labels prioritize Best practice, World, select
 
 The headline plot trims empty years within the requested range and fits the y-axis to available values of the selected lines and sex. Rounded y-axis bounds include at least two years of padding; the scale does not always start at zero.
 
-Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. Historical coverage is explained below the chart rather than inside the plot. A note above the View data table explains limited historical coverage. A click/tap info button beside the Best practice endpoint label opens its definition separately from year-value tooltips; Escape or a click outside closes it. The full calculation rules remain in Methodology and coverage. Inside the graph card, a footer pairs the concise source credit on the left with View data and Download buttons on the right. The credit and actions stack on narrow screens. View data opens Data and methodology, with separate Table, Sources and credits, and Methodology tabs. Arrow keys, Home, and End move between tabs; each opening starts on the table. View data opens a native modal dialog containing the current sex, selected lines, and displayed years; missing values use a dash. The table is built lazily when opened. Download opens a separate dialog with CSV and JSON links for the complete graph dataset, not just the current selection. Both dialogs have close buttons, support Escape and backdrop dismissal, and return focus to their opening control. The CSV contains source observations; JSON also includes calculated reference lines and source details.
+Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. A note above the View data table explains limited historical coverage. A click/tap info button beside the Best practice endpoint label opens its definition separately from year-value tooltips; Escape or a click outside closes it. The full calculation rules are in the Methodology tab. Inside the graph card, a footer pairs the concise source credit on the left with View data and Download buttons on the right. The credit and actions stack on narrow screens. View data opens Data and methodology, with separate Table, Sources and credits, and Methodology tabs. Arrow keys, Home, and End move between tabs; each opening starts on the table. View data opens a native modal dialog containing the current sex, selected lines, and displayed years; missing values use a dash. The table is built lazily when opened. Download opens a separate dialog with CSV and JSON links for the complete graph dataset, not just the current selection. Both dialogs have close buttons, support Escape and backdrop dismissal, and return focus to their opening control. The CSV contains source observations; JSON also includes calculated reference lines and source details.
 
 Hover previews omit missing values and prioritize reference lines, showing up to ten entries. Clicking the plot pins a scrollable tooltip of selected lines with available observations; missing observations are currently omitted from both hover and pinned views. Endpoint labels are hover-only and the plot has no keyboard focus outline; annual observations are also available through View data.
 
@@ -73,9 +73,6 @@ Hover previews omit missing values and prioritize reference lines, showing up to
 The state is `{ sex, selectedSeries, startYear, endYear }`; controls dispatch
 changes rather than owning part of it. Rapid updates are coalesced into one
 animation frame. A visible table updates when its state changes; a hidden table
-is not rebuilt during slider drags or resizes. The SVG is still recreated for
-each scheduled draw; this change does not claim incremental D3 rendering or a
-measured performance improvement.
-
+is not rebuilt during slider drags or resizes. The SVG is recreated for each scheduled draw.
 
 Best practice uses the Longevity Initiative theme’s primary blue (`#2E5EA8`). The [website theme stylesheet](https://thelongevityinitiative.org/wp-content/themes/tli/assets/build/frontend.css) also defines secondary blue (`#31609A`), dark navy (`#0F2846`), red (`#CE3939`), green (`#37CA59`), yellow (`#F1E12F`), and warm neutral colors. These are website theme tokens, rather than a verified standalone brand guide. Other chart series retain a varied palette for identification.

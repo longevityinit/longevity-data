@@ -1,15 +1,16 @@
-# Age-65 graph: source audit and implementation direction
+# Life expectancy at age 65
 
-Audit date: 2026-11-02. The local age-65 graph is implemented on the shared headline renderer.
-It has not been published or embedded in WordPress.
+Sources, calculation rules, and shared chart behavior for the age-65 graph.
+The graph shows remaining years of life, separately for women and men.
+For build and preview commands, see [Local development](development.md#age-65-graph).
 
-## Sources verified
+## Sources and coverage
 
 OWID provides separate charts for
 [female](https://ourworldindata.org/grapher/remaining-life-expectancy-at-different-ages-females)
 and [male](https://ourworldindata.org/grapher/remaining-life-expectancy-at-different-ages-males)
 remaining life expectancy. Their `.csv` and `.metadata.json` exports were inspected
-for this audit. Metadata identifies Human Mortality Database (2025) and UN World
+on 2026-11-02. Metadata identifies Human Mortality Database (2025) and UN World
 Population Prospects (2024), processed by OWID.
 
 | Field | Female | Male |
@@ -21,9 +22,9 @@ Population Prospects (2024), processed by OWID.
 | Entities, including aggregates | 264 | 264 |
 | Observed year range | 1751–2023 | 1751–2023 |
 
-Counts describe the audited exports, not an approved country universe. CSV display
-headers differ from the metadata keys, so an adapter must map and validate them
-explicitly. The range does not imply complete historical country coverage.
+Counts describe the exports inspected on that date, including aggregates. The adapter
+maps CSV display headers to metadata keys and validates them. Historical country
+coverage is sparse; the full year range is not available for every location.
 
 Sample exported values, in remaining years:
 
@@ -36,57 +37,50 @@ Sample exported values, in remaining years:
 | Europe (UN) | 2023 | 20.8956 | 17.4829 |
 
 World (`OWID_WRL`) and all six existing UN regional IDs are present. Income groups
-and other aggregates are also present upstream; retain the existing explicit
-country/region eligibility rules rather than treating every export entity as a country.
+and other aggregates are also present upstream. The chart uses the same country
+and territory eligibility rules as the birth chart, and offers UN regions separately.
 These are source observations, not independently validated life-table calculations.
 
-Use these remaining-years exports rather than assuming every OWID life-expectancy
-chart uses the same convention. OWID's
+The chart uses the remaining-years exports directly. OWID's
 [female birth chart processing notes](https://ourworldindata.org/grapher/womens-life-expectancy-at-birth)
 explain that some age-specific presentations add the starting age to show expected
-age at death. Do not subtract 65 from the remaining-years exports audited here.
+age at death. The exports used here already contain remaining years, so the adapter
+does not subtract 65.
 
-## Decisions before calculations
+## Calculations
 
-- **Percentile weights:** the agreed age-65 rule uses sex-specific population
-  aged 65+, summed from 65–69 through 100+. The birth chart retains all-age
-  sex-specific weights. Missing modern country weights cause an error, and missing
-  life expectancy is excluded from each percentile with weights renormalized.
-- **Best practice:** retains the current total-population >1 million rule, the
-  1850 start, and a minimum of two eligible countries per year and sex. Historical
-  geographic compatibility remains subject to review before publication.
-- **World and regions:** use the age-65 source aggregates directly; do not derive
-  them by averaging national life expectancies.
-- **Interpolation:** the inverse weighted CDF remains the implemented method.
-  Midpoint interpolation is still an open project decision for both graphs.
-- **History:** inspect eligible country counts and population joins before adopting
-  a historical start date. Birth-chart coverage rules do not establish age-65 coverage.
-- **Release and rights:** pin the eventual CSV and metadata snapshots, preserve
-  upstream citations, and verify HMD/UN reuse terms for the chosen release before
-  publication. This audit does not complete that review.
+- **Percentiles:** weights use the population of the selected sex aged 65 or older,
+  summed from the 65–69 group through 100+. The birth chart uses all ages instead.
+  Missing modern country weights cause an error. Countries without life expectancy
+  are excluded, and population shares are calculated from the remaining observations.
+  Percentiles use the inverse weighted CDF, without interpolation between countries.
+- **Best practice:** the highest remaining life expectancy among countries and
+  territories with total population strictly above one million. It starts in 1850,
+  with at least two eligible locations per year and sex. Ties include all winners.
+  The cutoff uses total population, not the number of people aged 65 or older.
+- **World and regions:** the source aggregates are used directly, rather than
+  calculated by averaging national life expectancies.
 
-## Reuse boundaries
+Historical population estimates use present-day borders, which may differ from
+historical mortality territories. This limits the interpretation of early Best
+practice values. Historical coverage, source rights, and the interpolation decision
+are tracked in the [implementation plan](plan.md).
 
-Keep vanilla JavaScript, D3, native controls, and the current module boundaries.
-The implementation adds a small chart configuration:
+## Shared chart behavior
 
-- Share URL/state transitions, selection/search, timeline, label placement,
-  tooltip positioning, lazy tables, responsive layout, and styles.
-- Configure age/measure, title/subtitle, axis and value labels, tooltip/table
-  accessible names, coverage notes, defaults, output paths, and persistence keys.
-  Current birth-specific text and storage names must not leak into age 65.
-- Generalize Python summaries to group by sex **and age**, and accept explicit
-  population weights. Keep source-specific validation in adapters.
-- Reuse snapshot/provenance/publication utilities. Both charts must package all
-  shared assets and licence notices in their own publication manifests.
+Both graphs use the same URL state, selector, timeline, axes, endpoint labels,
+tooltips, data table, dialogs, and styles. The details are described in
+[Headline graph](headline-graph.md). The age-65 chart has its own title, measure
+labels, source links, methodology, and saved-selection key. Switching sex updates
+the source link to the corresponding female or male OWID export.
 
-The age-65 adapter feeds the shared calculations, which group by age as well as
-sex and year. A shared builder packages the same JS/CSS and a separate age-65
-methodology fragment. `headline-config.js` supplies wording and storage keys. Preserve the birth graph's outputs and interaction
-behavior with regression tests. No new frontend framework or bundler is needed.
+The indicator calculations group observations by age, sex, and year. The age-65
+adapter supplies remaining-life-expectancy observations and sex-specific 65+
+population weights to those shared calculations.
 
-Local outputs use `headline_age65` for standardised data and
-`headline-life-expectancy-age-65` for the chart. Source exports and generated
-artifacts remain in ignored `output/`. Snapshot manifests pin all dependencies;
-publishing still requires committed provenance. See [development.md](development.md#age-65-graph)
-for commands.
+Standardised data are written to `output/data/standardised/owid/headline_age65/`;
+the chart is written to `output/charts/headline-life-expectancy-age-65/`.
+Each chart's publication manifest includes its shared assets and licence notices.
+Snapshot dependencies are pinned, and publication requires committed provenance.
+The default Pages snapshot set remains the birth chart's five datasets; the two
+age-65 exports are downloaded explicitly.

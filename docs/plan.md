@@ -52,9 +52,9 @@ and [headline-graph.md](headline-graph.md) for the current design and definition
 - [ ] Confirm the latest GitHub Actions run passes; local tests alone do not establish this.
 - [ ] Complete final mobile, keyboard, touch, and contrast review before publication.
 
-## 4. Age-65 graph — next implementation
+## 4. Age-65 graph
 
-Source audit and proposed reuse boundaries: [age-65 graph](age-65-graph.md).
+Sources and calculation rules: [age-65 graph](age-65-graph.md).
 
 - [x] Identify OWID female/male remaining-life-expectancy exports and inspect
       their age-65 units, historical coverage, World, and regional observations.
@@ -67,6 +67,11 @@ Source audit and proposed reuse boundaries: [age-65 graph](age-65-graph.md).
       avoid copying the entire headline pipeline.
 - [x] Test age isolation, source values, remaining-years units, weights, missing data,
       shared controls, asset packaging, and both publication manifests.
+
+- [ ] Review age-65 historical country coverage and population joins, including
+      compatibility between present-day population borders and mortality territories.
+- [ ] Confirm HMD/UN reuse terms and citations for the selected age-65 releases
+      before publication.
 
 ## 5. Publish and embed
 
