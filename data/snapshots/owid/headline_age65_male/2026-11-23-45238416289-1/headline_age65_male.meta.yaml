@@ -1,0 +1,8 @@
+dataset: headline_age65_male
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/remaining-life-expectancy-at-different-ages-males
+etag: null
+checksums:
+  csv_xxh3_64: 4e33d19f4bcc8bfd
+  json_xxh3_64: 16eeb6823f9f721a

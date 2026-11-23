@@ -1,28 +1,36 @@
 {
   "version": 1,
-  "release": "graph-data-43946279087-1",
-  "sha256": "1f460370cedb5b7ba8c4980e91006b8f6ac2022b134c27cc8427b49bb01ce645",
-  "source_revision": "56d32180fffdf6600083bcfaa06c218669d7e88f",
+  "release": "graph-data-45238416289-1",
+  "sha256": "b3a623751010ace14314fcb9d16a4f3ef95253c084a1767d29008e645b876f04",
+  "source_revision": "2bcaa22f197015675c95123c8cd010b806b3f1be",
   "snapshots": {
     "headline": {
-      "version": "2026-11-16-43946279087-1",
-      "download_date": "2026-11-16"
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
     },
     "headline_history": {
-      "version": "2026-11-16-43946279087-1",
-      "download_date": "2026-11-16"
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
     },
     "headline_population": {
-      "version": "2026-11-16-43946279087-1",
-      "download_date": "2026-11-16"
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
     },
     "headline_population_female": {
-      "version": "2026-11-16-43946279087-1",
-      "download_date": "2026-11-16"
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
     },
     "headline_population_male": {
-      "version": "2026-11-16-43946279087-1",
-      "download_date": "2026-11-16"
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
+    },
+    "headline_age65_female": {
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
+    },
+    "headline_age65_male": {
+      "version": "2026-11-23-45238416289-1",
+      "download_date": "2026-11-23"
     }
   }
 }

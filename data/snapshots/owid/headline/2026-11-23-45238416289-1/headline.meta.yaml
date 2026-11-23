@@ -1,0 +1,8 @@
+dataset: headline
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men
+etag: null
+checksums:
+  csv_xxh3_64: 759122d783239b05
+  json_xxh3_64: 339d4930c91f2fe1
