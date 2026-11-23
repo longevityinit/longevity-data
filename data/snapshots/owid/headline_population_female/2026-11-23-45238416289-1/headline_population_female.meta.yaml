@@ -1,0 +1,8 @@
+dataset: headline_population_female
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/female-population-by-age-group
+etag: null
+checksums:
+  csv_xxh3_64: 92b133e969d9bffc
+  json_xxh3_64: b714c19f0d22f4ae

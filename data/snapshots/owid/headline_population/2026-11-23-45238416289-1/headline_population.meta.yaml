@@ -1,0 +1,8 @@
+dataset: headline_population
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/population
+etag: null
+checksums:
+  csv_xxh3_64: fce6229402112f17
+  json_xxh3_64: 3b97a7176472678e

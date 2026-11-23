@@ -1,0 +1,8 @@
+dataset: headline_history
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/life-expectation-at-birth-by-sex
+etag: null
+checksums:
+  csv_xxh3_64: a19f0ea9bdf12bea
+  json_xxh3_64: 1188a824ea46f75f

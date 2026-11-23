@@ -1,0 +1,8 @@
+dataset: headline_age65_female
+source: owid
+download_date: '2026-11-23'
+original_url: https://ourworldindata.org/grapher/remaining-life-expectancy-at-different-ages-females
+etag: null
+checksums:
+  csv_xxh3_64: e16d52e4c7e67fd5
+  json_xxh3_64: b4e7fc23a7f84eb1
