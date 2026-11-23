@@ -1,5 +1,6 @@
 """Standalone chart assets must remain complete and covered by publication checks."""
 import importlib.util
+import re
 import shutil
 import sys
 import tempfile
@@ -38,12 +39,33 @@ class HeadlineBuildTests(unittest.TestCase):
 
             with patch.object(builder, 'ROOT', root), patch.object(builder, 'ensure_vendor_assets', vendor_assets):
                 builder.main()
+                age_source = root / 'output/data/standardised/owid/headline_age65'
+                shutil.copytree(source, age_source)
+                write_manifest({p: p.name for p in age_source.iterdir() if p.name != 'publish.json'}, age_source / 'publish.json')
+                builder.main(65)
+                age_chart = root / 'output/charts/headline-life-expectancy-age-65'
+                age_assets = {p.name for p, _ in validate_manifest(age_chart / 'publish.json')}
+                self.assertIn('headline-config.js', age_assets)
+                self.assertIn('d3-7.9.0-dependencies.txt', age_assets)
+                html = (age_chart / 'index.html').read_text(encoding='utf-8')
+                self.assertIn('Remaining life expectancy at age 65', html)
+                self.assertIn('65 or older', html)
+                self.assertLess(html.index('id="methodology"'), html.index('</dialog>'))
+                self.assertLess(html.index('Sources and credits'), html.index('</dialog>'))
+                self.assertNotIn('age 65 is not', html)
             directory = root / 'output/charts/headline-life-expectancy'
             manifest = directory / 'publish.json'
             verified = {path.name for path, _ in validate_manifest(manifest)}
-            for asset in ('headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css'):
+            for asset in ('headline-config.js', 'headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css'):
                 self.assertIn(asset, verified)
-                self.assertEqual((directory / asset).read_bytes(), (ROOT / 'src/charts' / asset).read_bytes())
+                built = (directory / asset).read_text(encoding='utf-8')
+                self.assertEqual(re.sub(r'\?v=[a-f0-9]{12}', '', built),
+                                 (ROOT / 'src/charts' / asset).read_text(encoding='utf-8'))
+            html = (directory / 'index.html').read_text(encoding='utf-8')
+            version = re.search(r'headline.js\?v=([a-f0-9]{12})', html).group(1)
+            self.assertIn(f'headline.css?v={version}', html)
+            self.assertIn(f'headline-controls.js?v={version}',
+                          (directory / 'headline.js').read_text(encoding='utf-8'))
             notice = root / 'output/charts/vendor/d3-7.9.0-dependencies.txt'
             self.assertIn(notice.name, verified)
             self.assertEqual(notice.read_bytes(), (ROOT / 'licenses' / notice.name).read_bytes())

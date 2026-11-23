@@ -1,6 +1,6 @@
 import { BASELINE_SERIES } from './headline-state.js';
 
-export function mountControls({ model, getState, update, onTableToggle }) {
+export function mountControls({ model, getState, update, onTableOpen }) {
   const { data, countryCodes, options } = model;
   const baselineLines = new Set(BASELINE_SERIES);
   const countryList = document.getElementById('country-list');
@@ -99,19 +99,11 @@ export function mountControls({ model, getState, update, onTableToggle }) {
   });
   const startControl = document.getElementById('start-year');
   const endControl = document.getElementById('end-year');
-  for (const input of [startControl, endControl]) {
-    input.min = data.start_year;
-    input.max = data.end_year;
-  }
-  const presets = [data.start_year, 1850, 1950, 2000, data.end_year].filter(
+  let rangeStart = data.start_year;
+  let rangeEnd = data.end_year;
+  let presets = [data.start_year, 1850, 1950, 2000, data.end_year].filter(
     (year, i, all) => year >= data.start_year && year <= data.end_year && all.indexOf(year) === i,
   );
-  const marks = document.getElementById('year-marks');
-  presets.forEach((year) => {
-    const option = document.createElement('option');
-    option.value = year;
-    marks.append(option);
-  });
   function moveNearestHandle(year) {
     const control =
       Math.abs(year - getState().startYear) <= Math.abs(year - getState().endYear)
@@ -126,32 +118,40 @@ export function mountControls({ model, getState, update, onTableToggle }) {
     const bounds = event.currentTarget.getBoundingClientRect();
     if (event.clientY - bounds.top > 36) return;
     const fraction = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-    let year = Math.round(data.start_year + fraction * (data.end_year - data.start_year));
+    let year = Math.round(rangeStart + fraction * (rangeEnd - rangeStart));
     const nearest = presets.reduce((a, b) => (Math.abs(b - year) < Math.abs(a - year) ? b : a));
-    if ((Math.abs(nearest - year) * bounds.width) / (data.end_year - data.start_year) <= 8)
-      year = nearest;
+    if ((Math.abs(nearest - year) * bounds.width) / (rangeEnd - rangeStart) <= 8) year = nearest;
     moveNearestHandle(year);
   });
-  presets.forEach((year) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'year-marker';
-    button.textContent = year;
-    button.dataset.year = year;
-    button.setAttribute('aria-label', `Move nearest range handle to ${year}`);
-    button.style.left = `${(100 * (year - data.start_year)) / (data.end_year - data.start_year)}%`;
-    button.addEventListener('click', () => {
-      moveNearestHandle(year);
-    });
-    document.getElementById('timeline').append(button);
-  });
+  function renderPresets() {
+    const marks = document.getElementById('year-marks');
+    marks.replaceChildren();
+    document.querySelectorAll('.year-marker').forEach((marker) => marker.remove());
+    presets = [...new Set([rangeStart, 1800, 1850, 1900, 1950, 2000, rangeEnd])].filter(
+      (year) => year >= rangeStart && year <= rangeEnd,
+    );
+    for (const year of presets) {
+      const option = document.createElement('option');
+      option.value = year;
+      marks.append(option);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'year-marker';
+      button.textContent = year;
+      button.dataset.year = year;
+      button.setAttribute('aria-label', `Move nearest range handle to ${year}`);
+      button.style.left = `${(100 * (year - rangeStart)) / (rangeEnd - rangeStart)}%`;
+      button.addEventListener('click', () => moveNearestHandle(year));
+      document.getElementById('timeline').append(button);
+    }
+  }
   // Snap on pointer release, but retain single-year keyboard adjustments.
   for (const control of [startControl, endControl]) {
     control.addEventListener('pointerup', () => {
       const year = Number(control.value);
       const nearest = presets.reduce((a, b) => (Math.abs(b - year) < Math.abs(a - year) ? b : a));
       const pixelsPerYear =
-        document.getElementById('timeline').clientWidth / (data.end_year - data.start_year);
+        document.getElementById('timeline').clientWidth / (rangeEnd - rangeStart);
       if (Math.abs(nearest - year) * pixelsPerYear <= 8) {
         update({ type: 'year', edge: control === startControl ? 'start' : 'end', year: nearest });
       }
@@ -164,7 +164,7 @@ export function mountControls({ model, getState, update, onTableToggle }) {
     const field = document.getElementById(id);
     function commitYear() {
       if (/^\d{4}$/.test(field.value.trim())) {
-        const year = Math.max(data.start_year, Math.min(data.end_year, Number(field.value)));
+        const year = Math.max(rangeStart, Math.min(rangeEnd, Number(field.value)));
         update({ type: 'year', edge: isStart ? 'start' : 'end', year });
         field.value = isStart ? getState().startYear : getState().endYear;
       } else {
@@ -189,12 +189,59 @@ export function mountControls({ model, getState, update, onTableToggle }) {
   function resetRange() {
     update({ type: 'resetRange' });
   }
-  document.getElementById('view-data').addEventListener('click', (event) => {
-    const table = document.getElementById('chart-data');
-    table.hidden = !table.hidden;
-    event.currentTarget.setAttribute('aria-expanded', String(!table.hidden));
-    onTableToggle();
+  const tabs = [...document.querySelectorAll('.data-tabs [role="tab"]')];
+  function selectTab(tab, focus = false) {
+    for (const item of tabs) {
+      const selected = item === tab;
+      item.setAttribute('aria-selected', String(selected));
+      item.tabIndex = selected ? 0 : -1;
+      document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
+    }
+    if (focus) tab.focus();
+    if (tab.id === 'tab-table') onTableOpen();
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', (event) => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = tabs.length - 1;
+      if (next !== undefined) {
+        event.preventDefault();
+        selectTab(tabs[next], true);
+      }
+    });
   });
+  for (const [buttonId, dialogId] of [
+    ['view-data', 'chart-data'],
+    ['download-data', 'download-dialog'],
+  ]) {
+    const button = document.getElementById(buttonId);
+    const dialog = document.getElementById(dialogId);
+    button.addEventListener('click', () => {
+      if (dialog.open) return;
+      dialog.showModal();
+      if (dialogId === 'chart-data') selectTab(tabs[0]);
+    });
+    dialog.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const box = dialog.getBoundingClientRect();
+      if (
+        event.clientX < box.left ||
+        event.clientX > box.right ||
+        event.clientY < box.top ||
+        event.clientY > box.bottom
+      )
+        dialog.close();
+    });
+    // Keep Escape local to the modal rather than also dismissing a pinned chart tooltip.
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') event.stopPropagation();
+    });
+  }
   document.getElementById('timeline').addEventListener('dblclick', (event) => {
     if (event.target.closest('button')) return;
     event.preventDefault();
@@ -216,22 +263,39 @@ export function mountControls({ model, getState, update, onTableToggle }) {
   function render(state, view) {
     document.querySelector(`input[name="sex"][value="${state.sex}"]`).checked = true;
     updateSelection();
-    startControl.value = state.startYear;
-    endControl.value = state.endYear;
+    // Availability uses the full selected series, so zooming never traps the handles.
+    const years = view.rows
+      .filter((row) => state.selectedSeries.has(row.series) && row.value != null)
+      .map((row) => row.year);
+    rangeStart = years.length ? Math.min(...years) : data.start_year;
+    rangeEnd = years.length ? Math.max(...years) : data.end_year;
+    if (rangeStart === rangeEnd) {
+      rangeStart = Math.max(data.start_year, rangeStart - 1);
+      rangeEnd = Math.min(data.end_year, rangeEnd + 1);
+    }
+    for (const input of [startControl, endControl]) {
+      input.min = rangeStart;
+      input.max = rangeEnd;
+    }
+    renderPresets();
+    const shownStart = state.startYear;
+    const shownEnd = state.endYear;
+    startControl.value = shownStart;
+    endControl.value = shownEnd;
     const timeline = document.getElementById('timeline');
     timeline.style.setProperty(
       '--range-start',
-      `${(100 * (state.startYear - data.start_year)) / (data.end_year - data.start_year)}%`,
+      `${(100 * (shownStart - rangeStart)) / (rangeEnd - rangeStart)}%`,
     );
     timeline.style.setProperty(
       '--range-end',
-      `${(100 * (state.endYear - data.start_year)) / (data.end_year - data.start_year)}%`,
+      `${(100 * (shownEnd - rangeStart)) / (rangeEnd - rangeStart)}%`,
     );
     // Keep preset labels readable even on a narrow chart; snapping still uses every preset.
     const markerWidth = timeline.clientWidth;
     const shownMarkers = [];
-    for (const year of [data.start_year, data.end_year, 1950, 1850, 2000]) {
-      const position = ((year - data.start_year) / (data.end_year - data.start_year)) * markerWidth;
+    for (const year of new Set([rangeStart, rangeEnd, 1950, 1900, 1850, 1800, 2000])) {
+      const position = ((year - rangeStart) / (rangeEnd - rangeStart)) * markerWidth;
       if (
         presets.includes(year) &&
         shownMarkers.every((other) => Math.abs(other - position) >= 44)
@@ -242,8 +306,8 @@ export function mountControls({ model, getState, update, onTableToggle }) {
         timeline.querySelector(`[data-year="${year}"]`).hidden = true;
     }
     for (const [id, year] of [
-      ['start-value', state.startYear],
-      ['end-value', state.endYear],
+      ['start-value', shownStart],
+      ['end-value', shownEnd],
     ]) {
       const field = document.getElementById(id);
       // A queued redraw must not replace an edit that has not been committed.

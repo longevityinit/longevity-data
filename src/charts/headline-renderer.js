@@ -14,20 +14,30 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+import { chartConfig } from './headline-config.js';
 import { isReference, tooltipEntries } from './headline-state.js';
 
 const format = (value) => (value == null ? '—' : value.toFixed(2));
 
-export function createRenderer({ d3, container, model }) {
+export function createRenderer({ d3, container, model, config = chartConfig(model.data) }) {
   const { names, countryCodes, options } = model;
   const referenceSeries = [
-    { id: 'frontier', name: 'Best practice', color: '#ff5722' },
+    // Primary blue from the Longevity Initiative website theme.
+    { id: 'frontier', name: 'Best practice', color: '#2e5ea8' },
     { id: 'OWID_WRL', name: 'World life expectancy', color: '#2680ff' },
-    { id: 'p10', name: '10th percentile (population-weighted)', color: '#e63e91', dash: '6 3' },
   ];
   function lineStyle(code) {
     const reference = referenceSeries.find((item) => item.id === code);
     if (reference) return reference;
+    const percentileColors = { p10: '#65a65b', p25: '#468d40', p75: '#2c6d2f', p90: '#194d23' };
+    if (Object.hasOwn(percentileColors, code)) {
+      return {
+        id: code,
+        name: names.get(code),
+        color: percentileColors[code],
+        dash: '6 3',
+      };
+    }
     const position = (0.42 + options.findIndex(([id]) => id === code) * 0.618034) % 1;
     const color = d3.hsl(d3.interpolateRainbow(position));
     // Keep the original hue variety, darkening only pale yellow/green shades.
@@ -108,7 +118,7 @@ export function createRenderer({ d3, container, model }) {
       .attr('text-anchor', 'middle')
       .attr('font-size', 12)
       .attr('fill', '#536372')
-      .text('Life expectancy at birth (years)');
+      .text(config.axisLabel);
     if (plotStart <= 1950 && plotEnd >= 1950)
       svg
         .append('line')
@@ -244,7 +254,7 @@ export function createRenderer({ d3, container, model }) {
         .attr('hidden', null)
         .classed('is-pinned', pin)
         .attr('role', pin ? 'dialog' : 'tooltip')
-        .attr('aria-label', `Life expectancy in ${year}`);
+        .attr('aria-label', `${config.tooltipLabel} in ${year}`);
       tooltip.selectAll('*').remove();
       const heading = tooltip.append('div').attr('class', 'tooltip-heading');
       heading.append('span').text(year);
@@ -432,6 +442,53 @@ export function createRenderer({ d3, container, model }) {
           return group;
         });
       labels.attr('data-series', (item) => item.id).attr('aria-label', (item) => item.name);
+      labels.each(function (item) {
+        const group = d3.select(this);
+        const info = group
+          .selectAll('foreignObject')
+          .data(item.id === 'frontier' ? [item] : [])
+          .join('foreignObject')
+          .attr('x', labelX + 72)
+          .attr('y', item.labelY - 13)
+          .attr('width', 26)
+          .attr('height', 26)
+          .on('pointermove', (event) => event.stopPropagation())
+          .on('pointerenter', (event) => event.stopPropagation());
+        info
+          .selectAll('button')
+          .data([item])
+          .join('xhtml:button')
+          .attr('class', 'best-practice-info-button')
+          .attr('type', 'button')
+          .attr('aria-label', 'About Best practice')
+          .attr('popovertarget', 'best-practice-info')
+          .text('')
+          .on('click', function (event) {
+            event.stopPropagation();
+            const popup = document.getElementById('best-practice-info');
+            const box = this.getBoundingClientRect();
+            popup.style.left = `${Math.max(12, Math.min(window.innerWidth - 304, box.right - 288))}px`;
+            popup.style.top = `${Math.max(12, Math.min(window.innerHeight - 160, box.bottom + 8))}px`;
+          });
+        const button = info.select('button');
+        const icon = button
+          .selectAll('svg')
+          .data([item])
+          .join('svg')
+          .attr('viewBox', '0 0 20 20')
+          .attr('aria-hidden', 'true')
+          .attr('fill', 'none')
+          .attr('stroke', 'currentColor')
+          .attr('stroke-width', 1.4);
+        icon
+          .selectAll('circle')
+          .data([item])
+          .join('circle')
+          .attr('cx', 10)
+          .attr('cy', 10)
+          .attr('r', 7.5);
+        icon.selectAll('path').data([item]).join('path').attr('d', 'M10 9v5M10 6v1');
+      });
       labels
         .select('path')
         .attr('data-series', (item) => item.id)
@@ -491,12 +548,12 @@ export function createRenderer({ d3, container, model }) {
 }
 
 // The hidden table has no rows until requested. Resizing the plot never invalidates it.
-export function createTableView(names) {
+export function createTableView(names, config = chartConfig({})) {
   let current;
   let version;
   let renderedVersion;
   function renderIfVisible() {
-    if (!current || document.getElementById('chart-data').hidden || version === renderedVersion)
+    if (!current || !document.getElementById('chart-data').open || version === renderedVersion)
       return;
     const { state, view, series, summary } = current;
     const head = document.querySelector('#table-caption + thead tr');
@@ -530,7 +587,7 @@ export function createTableView(names) {
     }
     document.getElementById('values').replaceChildren(fragment);
     document.getElementById('table-caption').textContent =
-      `${state.sex === 'female' ? 'Female' : 'Male'} life expectancy at birth, in years`;
+      `${state.sex === 'female' ? 'Female' : 'Male'} ${config.measure.toLowerCase()}, in years`;
     renderedVersion = version;
   }
   return {

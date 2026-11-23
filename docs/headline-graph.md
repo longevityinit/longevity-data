@@ -47,7 +47,7 @@ Legacy `lines`, internal IDs, `sex=female|male`, and `country=DEU` links remain 
 
 ## Timeline and axes
 
-The year-range controls serialize `start` and `end` in the URL. Bounds are clamped to available years; reversed/equal bounds reset to the full range. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range.
+The year-range controls serialize `start` and `end` in the URL. State, URL, and controls use the same bounds for the selected lines and sex. Requested ranges outside that coverage reset to the full available range; partly overlapping ranges are clamped. Reversed/equal bounds also reset to the available range. Slider bounds follow the full non-missing data range of the selected lines and sex. Adding earlier or later series expands the timeline; zooming does not shrink its bounds. Sliders use annual steps and marked years, with clickable year markers. Double-click the timeline or press Escape on a focused slider handle to reset the full range. The table and endpoint labels follow the selected range.
 
 
 The headline chart plots selected series only; unselected countries are not drawn in the background.
@@ -58,7 +58,7 @@ Endpoint label behavior: endpoint labels prioritize Best practice, World, select
 
 The headline plot trims empty years within the requested range and fits the y-axis to available values of the selected lines and sex. Rounded y-axis bounds include at least two years of padding; the scale does not always start at zero.
 
-Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. Historical coverage is explained below the chart rather than inside the plot. A persistent note below the chart explains the Best practice population cutoff and limited historical coverage. The footer groups View data, CSV, and JSON actions above the source credit and expandable credits/methodology.
+Timeline controls use compact editable year fields without visible From/To labels. Double-clicking the timeline or pressing Escape on a range handle resets the range; there is no separate Reset button. Preset labels are hidden on mobile; snapping remains available. Historical coverage is explained below the chart rather than inside the plot. A note above the View data table explains limited historical coverage. A click/tap info button beside the Best practice endpoint label opens its definition separately from year-value tooltips; Escape or a click outside closes it. The full calculation rules remain in Methodology and coverage. Inside the graph card, a footer pairs the concise source credit on the left with View data and Download buttons on the right. The credit and actions stack on narrow screens. View data opens Data and methodology, with separate Table, Sources and credits, and Methodology tabs. Arrow keys, Home, and End move between tabs; each opening starts on the table. View data opens a native modal dialog containing the current sex, selected lines, and displayed years; missing values use a dash. The table is built lazily when opened. Download opens a separate dialog with CSV and JSON links for the complete graph dataset, not just the current selection. Both dialogs have close buttons, support Escape and backdrop dismissal, and return focus to their opening control. The CSV contains source observations; JSON also includes calculated reference lines and source details.
 
 Hover previews omit missing values and prioritize reference lines, showing up to ten entries. Clicking the plot pins a scrollable tooltip of selected lines with available observations; missing observations are currently omitted from both hover and pinned views. Endpoint labels are hover-only and the plot has no keyboard focus outline; annual observations are also available through View data.
 
@@ -76,3 +76,6 @@ animation frame. A visible table updates when its state changes; a hidden table
 is not rebuilt during slider drags or resizes. The SVG is still recreated for
 each scheduled draw; this change does not claim incremental D3 rendering or a
 measured performance improvement.
+
+
+Best practice uses the Longevity Initiative theme’s primary blue (`#2E5EA8`). The [website theme stylesheet](https://thelongevityinitiative.org/wp-content/themes/tli/assets/build/frontend.css) also defines secondary blue (`#31609A`), dark navy (`#0F2846`), red (`#CE3939`), green (`#37CA59`), yellow (`#F1E12F`), and warm neutral colors. These are website theme tokens, rather than a verified standalone brand guide. Other chart series retain a varied palette for identification.

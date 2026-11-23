@@ -101,9 +101,11 @@ def read_snapshot(data, dataset):
     return rows, metadata, dependency, version
 
 
-def population_by_sex(rows, metadata, sex):
-    """Sum exhaustive, non-overlapping five-year ages, including 100+."""
-    ages = [f'{age}-{age + 4}' for age in range(0, 100, 5)] + ['100+']
+def population_by_sex(rows, metadata, sex, minimum_age=0):
+    """Sum non-overlapping five-year ages from minimum_age through 100+."""
+    if minimum_age not in (0, 65):
+        raise ValueError('Population minimum age must be 0 or 65')
+    ages = [f'{age}-{age + 4}' for age in range(minimum_age, 100, 5)] + ['100+']
     for age in ages:
         column = metadata['columns'][f'Population - Sex: {sex} - Age: {age} - Variant: estimates']
         if column['unit'] != 'people' or 'World Population Prospects (2024)' not in column['citationShort']:
@@ -158,11 +160,11 @@ def calculate(observations):
     result = [dict(row, series=row['code'], winners=[]) for row in observations if row['kind'] == 'country']
     annual = defaultdict(list)
     for row in observations:
-        annual[row['sex'], row['year']].append(row)
-    for (sex, year), rows in sorted(annual.items()):
+        annual[row['sex'], row['year'], row['age']].append(row)
+    for (sex, year, age), rows in sorted(annual.items()):
         countries = [r for r in rows if r['kind'] == 'country' and r['value'] is not None]
         eligible = [r for r in countries if r['population'] is not None and r['population'] > 1_000_000]
-        base = dict(year=year, sex=sex, age=0, unit='years', kind='summary', population=None)
+        base = dict(year=year, sex=sex, age=age, unit='years', kind='summary', population=None)
         best = max(r['value'] for r in eligible) if year >= 1850 and len(eligible) >= 2 else None
         winners = sorted(r['code'] for r in eligible if r['value'] == best)
         result.append(dict(base, code='frontier', series='frontier', entity='Best practice',
@@ -174,7 +176,7 @@ def calculate(observations):
                                entity=f'{percentile}th percentile (population-weighted)',
                                value=value, winners=[],
                                threshold_locations=sorted(r['code'] for r in countries if r['value'] == value),
-                               population_weight='sex_specific',
+                               population_weight='sex_specific_age_65_plus' if age == 65 else 'sex_specific',
                                covered_population=sum(r['sex_population'] for r in countries) if year >= 1950 else None,
                                country_count=len(countries)))
         for code, label in (GROUPS | OPTIONAL_GROUPS).items():

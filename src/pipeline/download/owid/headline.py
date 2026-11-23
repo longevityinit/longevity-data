@@ -21,6 +21,13 @@ SOURCES = {
 }
 
 
+AGE65_SOURCES = {
+    'headline_age65_female': 'remaining-life-expectancy-at-different-ages-females',
+    'headline_age65_male': 'remaining-life-expectancy-at-different-ages-males',
+}
+ALL_SOURCES = {**SOURCES, **AGE65_SOURCES}
+
+
 def download(dataset, slug, version=None):
     data = ROOT / 'output/data'
     directory = data / 'snapshots/owid' / dataset
@@ -65,6 +72,11 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', help='Unique snapshot version; defaults to today')
+    parser.add_argument('datasets', nargs='*',
+                        help='Datasets to download; defaults to the birth chart snapshot set')
     args = parser.parse_args()
-    for dataset, slug in SOURCES.items():
-        download(dataset, slug, args.version)
+    unknown = set(args.datasets) - ALL_SOURCES.keys()
+    if unknown:
+        parser.error(f'Unknown OWID datasets: {", ".join(sorted(unknown))}')
+    for dataset in args.datasets or SOURCES:
+        download(dataset, ALL_SOURCES[dataset], args.version)

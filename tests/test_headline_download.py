@@ -15,6 +15,14 @@ spec.loader.exec_module(module)
 
 
 class HeadlineDownloadTests(unittest.TestCase):
+    def test_default_snapshot_datasets_remain_compatible(self):
+        self.assertEqual(set(module.SOURCES), {
+            'headline', 'headline_history', 'headline_population',
+            'headline_population_female', 'headline_population_male',
+        })
+        self.assertEqual(set(module.AGE65_SOURCES), {'headline_age65_female', 'headline_age65_male'})
+        self.assertEqual(set(module.ALL_SOURCES), set(module.SOURCES) | set(module.AGE65_SOURCES))
+
     def test_retry_repairs_missing_or_stale_pointer_without_redownloading(self):
         for stale in (False, True):
             with self.subTest(stale=stale), tempfile.TemporaryDirectory() as tmp:

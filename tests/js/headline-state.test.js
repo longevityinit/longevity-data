@@ -95,10 +95,10 @@ test('selection changes are immutable and clearing retains only the baseline', (
 });
 
 test('URL ranges clamp; reversed/equal/malformed ranges reset predictably', () => {
-  assert.equal(parseState('?start=1000&end=9999', model).startYear, 1751);
+  assert.equal(parseState('?start=1000&end=9999', model).startYear, 1850);
   for (const query of ['?start=2000&end=1900', '?start=2000&end=2000', '?start=nope']) {
     const state = parseState(query, model);
-    assert.equal(state.startYear, 1751);
+    assert.equal(state.startYear, 1850);
     assert.equal(state.endYear, 2023);
   }
 });
@@ -110,7 +110,7 @@ test('range actions never cross, clamp bounds, and reset without losing selectio
   state = updateState(state, { type: 'year', edge: 'end', year: 1751 }, model);
   assert.equal(state.endYear, 2000);
   state = updateState(state, { type: 'resetRange' }, model);
-  assert.equal(state.startYear, 1751);
+  assert.equal(state.startYear, 1850);
   assert.equal(state.endYear, 2023);
   assert.equal(state.sex, 'male');
   assert.ok(state.selectedSeries.has('DEU'));
@@ -169,4 +169,13 @@ test('rapid updates coalesce into one frame and a later frame can be scheduled',
   assert.equal(draws, 1);
   schedule();
   assert.equal(callbacks.length, 1);
+});
+
+test('a URL before selected coverage normalizes state and serialization together', () => {
+  const state = parseState('?show=best,world&start=1751&end=1800', model);
+  assert.equal(state.startYear, 1850);
+  assert.equal(state.endYear, 2023);
+  const url = serializeState(state, 'https://example.org/');
+  assert.equal(url.searchParams.get('start'), '1850');
+  assert.equal(visibleData(state, model).plotStart, state.startYear);
 });
