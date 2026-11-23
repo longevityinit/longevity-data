@@ -2,8 +2,9 @@
 
 There are three separate operations. Existing `Checks` and bucket/WordPress
 publication are unchanged; no bucket credentials or new repository secrets are
-needed. Graph builds currently include only the headline at-birth chart, not the
-already published original graph or unfinished age-65 work.
+needed. Graph builds include the life expectancy at birth chart. They also include the
+age-65 chart when the selected snapshot contains its two additional exports.
+The original preview graph is not part of Pages.
 
 | Operation | Trigger | Data | Result |
 | --- | --- | --- | --- |
@@ -34,7 +35,10 @@ with an invented archive or unreviewed local data.
 
 ## Refresh and adopt data deliberately
 
-1. Run **Refresh graph data** from `main`. It downloads the five source exports,
+1. Run **Refresh graph data** from `main`. Check **include_age65** to add the age-65
+   chart to the candidate. Once an age-65 snapshot is selected, future refreshes
+   retain it even when the checkbox is left off. Birth-only snapshots continue to
+   use five exports; age-65 snapshots use seven. The workflow downloads the selected exports,
    records checksums and dates, and calculates/builds the candidate graph using
    that commit. Each candidate uses a unique date/run/attempt snapshot version.
 2. With **create_pr** unchecked (the default), ask a maintainer to prepare the
@@ -44,7 +48,8 @@ with an invented archive or unreviewed local data.
    With **create_pr** checked, open the adoption PR linked in the workflow summary. It contains the generated
    selection/provenance files and a comparison against the previous selected data:
    changed values, added/removed rows, missing values, and the largest numeric
-   change. The baseline and candidate use the same calculation code, isolating
+   change. Age-65 candidates have a separate comparison in the same report; the
+   first adoption records that no previous age-65 baseline exists. The baseline and candidate use the same calculation code, isolating
    data changes from code changes.
 3. Review that summary and the source metadata. Download the review graph artifact
    if a visual comparison is useful. If GitHub shows **Approve workflows to run**,
@@ -84,6 +89,9 @@ It does not fetch source data from OWID. Browser libraries may be downloaded by
 the existing chart builder. Indicators are recalculated from the restored data;
 chart HTML/JS/CSS are rebuilt from the clean source commit during packaging.
 The existing committed-provenance checks remain required for deployable builds.
+A five-dataset selection prepares the birth chart alone. A seven-dataset selection
+prepares both charts and adds both links to the review homepage. Preparation does
+not fill missing age-65 sources from local files or live downloads.
 The homepage displays the snapshot identifier and code commit.
 
 The complete site is saved as `graphs-<attempt>` for **14 days**. Download and
@@ -153,3 +161,13 @@ before preparing a separate checkout. Builds never modify tracked provenance.
 
 For an optional PR-job retry, rerun all jobs so the review artifact and run-attempt
 identifier stay aligned. Normal refreshes leave `create_pr` unchecked.
+
+
+## Adding age 65 to the published site
+
+After the Pages support changes are merged, run **Refresh graph data** with
+**include_age65** checked. Review the two-chart artifact, source metadata, and age-65
+comparison. Adopt that candidate through its selection/provenance PR. Once merged,
+wait for **Prepare graphs** on that exact main commit, then run **Deploy graphs**
+with the default inputs. This publishes the reviewed prepared artifact containing
+both charts. The existing selected five-dataset release is unchanged until adoption.

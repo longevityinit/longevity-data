@@ -9,12 +9,13 @@ import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from charts.headline import source_assets
+from charts.headline import source_assets, render_assets
 from utils.provenance import git_file, require_committed_provenance
 from utils.publication import checksum, validate_manifest, write_json
 
 ROOT = Path(__file__).resolve().parents[2]
 TITLES = {
+    'headline-life-expectancy-age-65': ('Life expectancy at age 65', 'Remaining years of life, by country and sex.'),
     'headline-life-expectancy': ('Life expectancy at birth', 'Compare countries, best practice, and population-weighted percentiles.'),
 }
 
@@ -61,21 +62,25 @@ def build(manifests: list[Path], root: Path = ROOT, *, candidate: bool = False) 
             files[relative] = source
         if slug + '/index.html' not in files:
             raise ValueError(f'Missing chart entry point: {slug}')
-        if slug == 'headline-life-expectancy':
+        age = 65 if slug == 'headline-life-expectancy-age-65' else 0
+        if slug in TITLES:
             chart_data = json.loads((charts / slug / 'headline.json').read_text(encoding='utf-8'))
             if chart_data.get('code_revision') != commit or chart_data.get('code_dirty') is not False:
                 raise ValueError('Rebuild headline indicators from the clean release commit.')
         # Rebuild presentation files from this commit instead of trusting a previous
         # chart build's manifest: its hashes establish integrity, not code revision.
-        for name, source in source_assets(root).items():
+        sources = {}
+        for name, source in source_assets(root, age).items():
             relative = source.relative_to(root).as_posix()
             committed = git_file(root, commit, relative)
             if source.read_bytes() != committed:
                 raise ValueError(f'Chart source differs from release commit: {relative}')
+            sources[name] = committed
+        for name, content in render_assets(sources, age).items():
             destination = slug + '/' + name
             if destination not in files:
                 raise ValueError(f'Chart manifest is missing presentation asset: {destination}')
-            presentation[destination] = committed
+            presentation[destination] = content
         selected.append(slug)
     if not selected:
         raise ValueError('Select at least one chart manifest.')
