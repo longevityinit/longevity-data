@@ -262,7 +262,7 @@ h1 {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px 8px 0;
+  padding: 8px 10px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 12px;
@@ -441,7 +441,6 @@ a {
   gap: 12px 24px;
   margin: 12px 0 0;
   padding-top: 12px;
-  border-top: 1px solid #e2e8ed;
   align-items: center;
   font-size: 13px;
 }
@@ -601,18 +600,141 @@ a {
 }
 .data-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  gap: 8px;
 }
 .data-actions button {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: #245b7e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #d9dfe4;
+  border-radius: 6px;
+  background: var(--surface);
+  color: #405365;
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
+}
+.data-actions button:hover,
+.dialog-close:hover,
+.download-options a:hover {
+  background: #edf4f8;
+  border-color: #a8c3d4;
+  color: #245b7e;
+}
+.data-actions button span {
+  line-height: 1;
+  transform: translateY(-1px);
+}
+.data-actions svg {
+  display: block;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.data-actions button:focus-visible,
+.dialog-close:focus-visible,
+.download-options a:focus-visible {
+  outline: 2px solid #245b7e;
+  outline-offset: 3px;
+}
+body:has(.data-dialog[open]) {
+  overflow: hidden;
+}
+.data-dialog {
+  box-sizing: border-box;
+  width: min(960px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  border: 1px solid #d9dfe4;
+  border-radius: 12px;
+  color: #263c4c;
+  background: var(--surface);
+  box-shadow: 0 16px 64px #162f4a30;
+}
+.data-dialog::backdrop {
+  background: #182b3e66;
+}
+.dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dialog-heading h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.dialog-close {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #536372;
+  font-size: 26px;
+  cursor: pointer;
+}
+.dialog-description {
+  color: var(--secondary-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.data-dialog .table-scroll {
+  max-height: min(60dvh, 600px);
+  margin-top: 20px;
+}
+.download-dialog {
+  width: min(540px, calc(100% - 32px));
+}
+.download-options {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.download-options a {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 16px;
+  padding: 16px;
+  border: 1px solid #d9dfe4;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #405365;
+}
+.download-options strong {
+  font-size: 16px;
+}
+.download-options a span:first-of-type {
+  grid-column: 1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.download-options a span:last-child {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: 22px;
+}
+@media (max-width: 600px) {
+  .data-dialog {
+    padding: 16px;
+  }
 }
 @media (max-width: 600px) {
   .year-range .year-marker {
@@ -722,12 +844,36 @@ a {
   font-size: 14px;
   color: #536372;
 }
-footer {
-  border-top: 1px solid #d9dfe4;
-  margin-top: 24px;
+.chart-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 16px;
   padding-top: 14px;
   font-size: 12px;
   color: var(--secondary-text);
+}
+.chart-source {
+  flex: 1 1 260px;
+  margin: 0;
+  line-height: 1.6;
+}
+.chart-source a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.chart-footer .data-actions {
+  flex: 0 0 auto;
+}
+@media (max-width: 600px) {
+  .chart-footer {
+    align-items: flex-start;
+  }
+  .chart-source {
+    flex-basis: 100%;
+  }
 }
 details {
   margin: 16px 0;
@@ -760,4 +906,127 @@ thead {
   position: sticky;
   top: 0;
   background: var(--surface);
+}
+
+.dialog-supporting-info {
+  margin-top: 20px;
+  padding-top: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.dialog-supporting-info summary {
+  color: #405365;
+}
+.dialog-supporting-info p,
+.dialog-supporting-info ul {
+  color: var(--secondary-text);
+}
+
+.best-practice-info-button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #718493;
+  background: transparent;
+  cursor: pointer;
+}
+.best-practice-info-button svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+.best-practice-info-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.best-practice-info-button:hover,
+.best-practice-info-button:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--control-hover);
+}
+#best-practice-info {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(288px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: white;
+  color: var(--text);
+  box-shadow: 0 4px 16px #0000001a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#country-picker {
+  container-type: inline-size;
+}
+@container (min-width: 400px) {
+  .picker-filters {
+    display: flex;
+    width: fit-content;
+    gap: 4px;
+  }
+  .picker-filters button {
+    padding: 7px 13px;
+    white-space: nowrap;
+  }
+}
+.coverage-note {
+  color: var(--secondary-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.data-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 20px 0 16px;
+  border-bottom: 1px solid var(--control-border);
+}
+.data-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--secondary-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.data-tabs button:hover {
+  background: var(--control-hover);
+}
+.data-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.data-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.data-dialog [role='tabpanel'] {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.dialog-supporting-info {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.download-dialog .dialog-heading {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.download-dialog .dialog-description {
+  margin-top: 0;
+  padding-right: 36px;
 }

@@ -3,10 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>
-      A century of unequal progress: life expectancy at birth for women, 1751–2023 · Our Longevity
-      in Data
-    </title>
+    <title>Life expectancy at birth · Our Longevity in Data</title>
     <script defer src="../vendor/d3-7.9.0.min.js"></script>
     <script type="module" src="headline.js"></script>
     <link rel="stylesheet" href="headline.css" />
@@ -14,8 +11,8 @@
   <body>
     <main>
       <div class="eyebrow">Our Longevity in Data</div>
-      <h1 id="chart-title">A century of unequal progress</h1>
-      <p class="subtitle" id="chart-subtitle">Life expectancy at birth · Women · 1751–2023</p>
+      <h1 id="chart-title">Life expectancy at birth</h1>
+      <p class="subtitle" id="chart-subtitle">Women · 1751–2023</p>
       <div class="line-controls">
         <fieldset class="sex-selector">
           <legend class="visually-hidden">Sex</legend>
@@ -118,23 +115,110 @@
                 also double-click the timeline to reset.</span
               >
             </div>
-            <p class="chart-note">
-              Best practice: highest life expectancy among countries and territories with
-              populations over one million, shown from 1850. Historical coverage is limited before
-              1950.
-            </p>
           </div>
+          <footer class="chart-footer">
+            <p class="chart-source">
+              Source:
+              <a
+                id="source"
+                href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men"
+                >HMD, UN World Population Prospects, and historical population via Our World in
+                Data</a
+              >.
+            </p>
+            <nav class="data-actions" aria-label="Chart data">
+              <button
+                type="button"
+                id="view-data"
+                aria-haspopup="dialog"
+                aria-controls="chart-data"
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20">
+                  <rect x="3" y="4" width="14" height="12" rx="1" />
+                  <path d="M3 8h14M3 12h14M8 4v12" />
+                </svg>
+                <span>View data</span>
+              </button>
+              <button
+                type="button"
+                id="download-data"
+                aria-haspopup="dialog"
+                aria-controls="download-dialog"
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20">
+                  <path d="M10 3v9m-4-4 4 4 4-4M4 13v4h12v-4" />
+                </svg>
+                <span>Download</span>
+              </button>
+            </nav>
+          </footer>
         </div>
       </div>
-      <footer>
-        <nav class="data-actions" aria-label="Chart data">
-          <button type="button" id="view-data" aria-expanded="false" aria-controls="chart-data">
-            View data</button
-          ><span aria-hidden="true">·</span><a href="observations.csv" download>Download CSV</a
-          ><span aria-hidden="true">·</span><a href="headline.json" download>Download JSON</a>
-        </nav>
-        <div id="chart-data" hidden>
-          <div class="table-scroll" tabindex="0">
+
+      <div id="best-practice-info" popover>
+        Highest life expectancy among countries and territories with more than one million people.
+        Shown from 1850, where at least two eligible locations have data.
+      </div>
+      <dialog id="chart-data" class="data-dialog" aria-labelledby="data-dialog-title">
+        <div class="dialog-heading">
+          <h2 id="data-dialog-title">Data and methodology</h2>
+          <button type="button" class="dialog-close" aria-label="Close data table" autofocus>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="data-tabs" role="tablist" aria-label="Data and methodology">
+          <button
+            type="button"
+            role="tab"
+            id="tab-table"
+            aria-controls="panel-table"
+            aria-selected="true"
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-sources"
+            aria-controls="panel-sources"
+            aria-selected="false"
+            tabindex="-1"
+          >
+            Sources and credits
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-methodology"
+            aria-controls="methodology"
+            aria-selected="false"
+            tabindex="-1"
+          >
+            Methodology
+          </button>
+        </div>
+        <section id="panel-table" role="tabpanel" aria-labelledby="tab-table">
+          <p class="dialog-description">
+            Values for the lines, sex, and years currently shown on the chart. A dash indicates
+            missing data.
+          </p>
+          <p class="coverage-note">Historical coverage is limited before 1950.</p>
+          <div
+            class="table-scroll"
+            tabindex="0"
+            role="region"
+            aria-label="Annual life expectancy values"
+          >
             <table>
               <caption id="table-caption">
                 Annual life expectancy in years
@@ -142,75 +226,122 @@
               <thead>
                 <tr>
                   <th scope="col">Year</th>
-                  <th scope="col">Best practice</th>
-                  <th scope="col">World life expectancy</th>
-                  <th scope="col">10th percentile</th>
                 </tr>
               </thead>
               <tbody id="values"></tbody>
             </table>
           </div>
+        </section>
+        <div class="dialog-supporting-info">
+          <section
+            id="panel-sources"
+            role="tabpanel"
+            aria-labelledby="tab-sources"
+            hidden
+            tabindex="0"
+          >
+            <ul id="data-source-credits"></ul>
+            <p>
+              Our World in Data brings together the source datasets listed above. The Longevity
+              Initiative calculates the Best practice and population-weighted percentile lines.
+              Material produced by OWID is licensed under
+              <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Data from other
+              providers are subject to their original licences.
+            </p>
+          </section>
+          <section
+            id="methodology"
+            role="tabpanel"
+            aria-labelledby="tab-methodology"
+            hidden
+            tabindex="0"
+          >
+            <p>
+              This chart shows life expectancy at birth for women and men, using historical
+              estimates from 1751 to 2023. It does not include projections. Life expectancy
+              describes how long someone would live if they experienced the death rates of that year
+              throughout their life; it is not a prediction for a person born that year.
+            </p>
+            <p>
+              <strong>Best practice</strong> is the highest life expectancy among countries and
+              territories with a total population of more than one million that year. The line
+              starts in 1850. Each year needs at least two eligible locations with data for the
+              selected sex. If several locations tie, all are credited. A country without population
+              data can still be shown on its own, but cannot contribute to Best practice.
+            </p>
+            <p>
+              <strong>World life expectancy</strong> is the World series from the UN World
+              Population Prospects, supplied through OWID. We use it directly rather than
+              calculating an average of country values.
+            </p>
+            <p>
+              <strong>Percentiles</strong> start in 1950. We sort countries and territories from
+              lowest to highest life expectancy, then add up their populations until we reach the
+              chosen share: 10%, 25%, 75%, or 90%. The line takes the life expectancy of the country
+              where that share is reached, without interpolating between countries. Women’s lines
+              use female population; men’s lines use male population. Countries of every size are
+              included. Countries with missing data are left out, and the shares are calculated from
+              the population with data available that year.
+            </p>
+            <p>
+              These percentiles compare country-level life expectancy. They do not describe
+              individual lifespans or the average for the bottom 10% or 25% of people. A large
+              country can cause a jump in a percentile line.
+            </p>
+            <p>
+              <strong>Coverage:</strong> Sweden provides the earliest observations, in 1751, and is
+              the only country shown before 1800. Coverage remains limited and changes over time
+              before 1950. The World series starts in 1950. Missing years are left as gaps; we do
+              not fill in life expectancy or population values.
+            </p>
+            <p>
+              Country calculations use locations with an OWID world-region assignment, excluding
+              regional and income totals. UK constituent areas without country IDs are also
+              excluded. Historical population estimates use present-day borders, which may differ
+              from the territories covered by historical mortality records. We still need to check
+              this match before publishing historical Best practice values. Changes in country
+              coverage can also change the Best practice line.
+            </p>
+          </section>
         </div>
-        <p>
-          Source:
-          <a
-            id="source"
-            href="https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men"
-            >HMD, UN World Population Prospects, and historical population via Our World in Data</a
-          >.
+      </dialog>
+      <dialog
+        id="download-dialog"
+        class="data-dialog download-dialog"
+        aria-labelledby="download-dialog-title"
+      >
+        <div class="dialog-heading">
+          <h2 id="download-dialog-title" class="visually-hidden">Download data</h2>
+          <button type="button" class="dialog-close" aria-label="Close downloads" autofocus>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <p class="dialog-description">
+          Download the full dataset for this graph, including both sexes and all available years.
+          Downloads are not limited to your current selection.
         </p>
-        <details>
-          <summary>Data sources and credits</summary>
-          <ul id="data-source-credits"></ul>
-          <p>
-            Data processing by Our World in Data; additional best-practice and population-weighted
-            percentile calculations by The Longevity Initiative. OWID-produced material is available
-            under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; underlying
-            third-party data retain their respective source licences.
-          </p>
-        </details>
-        <details>
-          <summary>Methodology and coverage</summary>
-          <p>
-            <strong>Percentiles:</strong> the selectable 10th, 25th, 75th, and 90th percentile lines
-            rank countries and territories by life expectancy, then accumulate their female or male
-            populations. Each line is the first country value reaching its selected share of the
-            included population, with no interpolation. Women’s values are weighted by female
-            population, and men’s values by male population. All sizes are included, and aggregates
-            are excluded. Missing life expectancy is excluded and weights are renormalized over
-            available observations. Values start in 1950. This describes country-level life
-            expectancy, not percentiles of individual lifespans, nor the average within the bottom
-            group. Large countries can produce jumps.
-          </p>
-          <p>
-            This first version covers 1751–2023, at birth, separately for females and males. It
-            excludes projections. Countries and territories are the export's locations with an OWID
-            world-region assignment; regional and income aggregates are excluded from country
-            calculations.
-          </p>
-          <p>
-            <strong>Best practice:</strong> the highest value among countries and territories with a
-            recorded total population strictly above one million in that year. Best practice is
-            shown from 1850 onward; at least two eligible locations with life expectancy
-            observations are required for each year and sex. Country observations with missing
-            population are still available individually but excluded from best practice; no
-            population values are interpolated. Ties retain every winning location.
-            <strong>World life expectancy:</strong> the sex-specific World series supplied by UN WPP
-            through OWID, used directly without averaging country values.
-          </p>
-          <p>
-            Missing values remain gaps; no interpolation is applied. Changing country coverage can
-            affect the frontier. The earliest sex-specific observations are for Sweden in 1751;
-            before 1800 Sweden is the only included location, and historical population is missing
-            for most years. Before 1950, only a small, changing set of countries has observations:
-            the World series therefore starts in 1950. Historical population uses OWID’s
-            current-border estimates, while HMD historical mortality coverage may differ; historical
-            frontier eligibility needs further geographic review before publication. UK constituent
-            areas without country IDs are excluded. This is a local first version; age 65 is not
-            included.
-          </p>
-        </details>
-      </footer>
+        <div class="download-options">
+          <a href="observations.csv" download
+            ><strong>CSV</strong><span>Country and regional observations for spreadsheets.</span
+            ><span aria-hidden="true">↓</span></a
+          >
+          <a href="headline.json" download
+            ><strong>JSON</strong
+            ><span>Chart data, including Best practice and percentiles, with source details.</span
+            ><span aria-hidden="true">↓</span></a
+          >
+        </div>
+      </dialog>
     </main>
   </body>
 </html>

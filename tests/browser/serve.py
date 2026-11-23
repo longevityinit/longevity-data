@@ -31,10 +31,12 @@ class Handler(BaseHTTPRequestHandler):
         name = Path(urlparse(self.path).path).name
         if name == 'headline.json':
             content, kind = DATA, 'application/json'
+        elif name == 'observations.csv':
+            content, kind = b'code,year,value\nSWE,2023,22.2336\n', 'text/csv'
         else:
             if name == 'd3-7.9.0.min.js':
                 path = D3
-            elif name in ('headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css'):
+            elif name in ('headline-config.js', 'headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css'):
                 path = ROOT / 'src/charts' / name
             elif not name or name == 'index.html':
                 path = ROOT / 'src/pipeline/charts/templates/headline.html'

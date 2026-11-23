@@ -9,16 +9,18 @@ import {
   scheduleFrame,
   DEFAULT_SERIES,
 } from './headline-state.js';
+import { chartConfig } from './headline-config.js';
 import { mountControls } from './headline-controls.js';
 import { createRenderer, createTableView } from './headline-renderer.js';
 
-function savedSelection(model) {
+function savedSelection(model, config) {
   try {
-    const current = localStorage.getItem('headline-lines');
+    const current = localStorage.getItem(config.storageKey);
     if (current !== null) {
       const codes = JSON.parse(current);
       return Array.isArray(codes) ? codes : null;
     }
+    if (config.age !== 0) return null;
     const multiple = localStorage.getItem('headline-countries');
     if (multiple !== null) {
       const codes = JSON.parse(multiple);
@@ -63,24 +65,25 @@ async function main() {
     const data = await response.json();
     if (!Array.isArray(data.rows) || !data.rows.length)
       throw new Error('No observations available');
+    const config = chartConfig(data);
     const model = createModel(data);
     const embedded = window.self !== window.top;
     let state = initialState(
       {
         search: location.search,
         embedded,
-        saved: embedded ? null : savedSelection(model),
+        saved: embedded ? null : savedSelection(model, config),
         suggestedCountry: suggestedCountry(model.countries),
       },
       model,
     );
-    const renderer = createRenderer({ d3: window.d3, container, model });
-    const table = createTableView(model.names);
+    const renderer = createRenderer({ d3: window.d3, container, model, config });
+    const table = createTableView(model.names, config);
     const controls = mountControls({
       model,
       getState: () => state,
       update,
-      onTableToggle: () => table.renderIfVisible(),
+      onTableOpen: () => table.renderIfVisible(),
     });
     const requestRender = scheduleFrame(() => {
       try {
@@ -98,7 +101,7 @@ async function main() {
       history.replaceState(null, '', serializeState(state, location.href));
       if (action.type !== 'restore' && !embedded) {
         try {
-          localStorage.setItem('headline-lines', JSON.stringify([...state.selectedSeries]));
+          localStorage.setItem(config.storageKey, JSON.stringify([...state.selectedSeries]));
         } catch {
           /* Optional persistence. */
         }
@@ -117,8 +120,10 @@ async function main() {
         ]),
       );
       controls.render(state, view);
-      const heading = 'A century of unequal progress';
-      const subtitle = `Life expectancy at birth · ${state.sex === 'female' ? 'Women' : 'Men'} · ${view.plotStart}–${view.plotEnd}`;
+      document.getElementById('source').href =
+        data.source_urls?.[state.sex] || data.source_url || '#';
+      const heading = config.title;
+      const subtitle = `${config.subtitlePrefix}${state.sex === 'female' ? 'Women' : 'Men'} · ${view.plotStart}–${view.plotEnd}`;
       document.getElementById('chart-title').textContent = heading;
       document.getElementById('chart-subtitle').textContent = subtitle;
       document.title = `${heading}: ${subtitle} · Our Longevity in Data`;
@@ -133,6 +138,7 @@ async function main() {
       status.hidden = true;
     }
 
+    document.getElementById('source').href = data.source_url || '#';
     document.getElementById('source').textContent = `${data.source}, via Our World in Data`;
     for (const source of data.sources || []) {
       const entry = document.createElement('li');

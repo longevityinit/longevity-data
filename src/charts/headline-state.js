@@ -43,6 +43,27 @@ export function hasUrlState(search) {
   return ['sex', 'show', 'lines', 'country', 'start', 'end'].some((key) => query.has(key));
 }
 
+function normalizeYears(state, model) {
+  const years = model.rowsBySex
+    .get(state.sex)
+    .filter((row) => state.selectedSeries.has(row.series) && row.value != null)
+    .map((row) => row.year);
+  if (!years.length) return state;
+  let minimum = Math.min(...years);
+  let maximum = Math.max(...years);
+  if (minimum === maximum) {
+    minimum = Math.max(model.data.start_year, minimum - 1);
+    maximum = Math.min(model.data.end_year, maximum + 1);
+  }
+  state.startYear = Math.max(minimum, Math.min(maximum, state.startYear));
+  state.endYear = Math.max(minimum, Math.min(maximum, state.endYear));
+  if (state.startYear >= state.endYear) {
+    state.startYear = minimum;
+    state.endYear = maximum;
+  }
+  return state;
+}
+
 export function parseState(search, model) {
   const query = new URLSearchParams(search);
   const { start_year: minimum, end_year: maximum } = model.data;
@@ -69,12 +90,15 @@ export function parseState(search, model) {
           .flatMap((value) => value.split(','))
           .filter((code) => model.countryCodes.has(code)),
       ];
-  return {
-    sex: ['m', 'male'].includes(query.get('sex')) ? 'male' : 'female',
-    selectedSeries: normalizeSelection(codes, model),
-    startYear,
-    endYear,
-  };
+  return normalizeYears(
+    {
+      sex: ['m', 'male'].includes(query.get('sex')) ? 'male' : 'female',
+      selectedSeries: normalizeSelection(codes, model),
+      startYear,
+      endYear,
+    },
+    model,
+  );
 }
 
 export function serializeState(state, href) {
@@ -98,7 +122,7 @@ export function initialState({ search, embedded, saved, suggestedCountry }, mode
     saved ?? [...DEFAULT_SERIES, ...(suggestedCountry ? [suggestedCountry] : [])],
     model,
   );
-  return state;
+  return normalizeYears(state, model);
 }
 
 // Every user-facing state change passes through this reducer; DOM values are inputs, not storage.
@@ -133,7 +157,12 @@ export function updateState(state, action, model) {
       throw new Error(`Unknown state action: ${action.type}`);
   }
   next.selectedSeries = normalizeSelection([...next.selectedSeries], model);
-  return next;
+  if (['select', 'clear', 'sex'].includes(action.type)) {
+    const fullRange = normalizeYears({ ...state, startYear: minimum, endYear: maximum }, model);
+    if (state.startYear === fullRange.startYear) next.startYear = minimum;
+    if (state.endYear === fullRange.endYear) next.endYear = maximum;
+  }
+  return normalizeYears(next, model);
 }
 
 export function visibleData(state, model) {

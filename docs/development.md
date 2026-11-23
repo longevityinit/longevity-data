@@ -275,3 +275,25 @@ artifacts are uploaded. See [GitHub Actions billing](https://docs.github.com/en/
 
 See [Graph hosting](graph-hosting.md) for graph preparation on merges, deliberate data
 refresh/adoption, manual GitHub Pages deployment, and local site preview.
+## Age-65 graph
+
+The age-65 graph shares the headline controls, renderer, styles, and publication
+utilities. Its percentiles use sex-specific population aged 65+, and its values
+are remaining years rather than expected age at death. See
+[age-65 definitions](age-65-graph.md) for sources and limitations.
+
+After preparing the birth chart's input snapshots with the existing headline
+commands, download the two additional snapshots and build locally:
+
+```bash
+python src/pipeline/download/owid/headline.py headline_age65_female headline_age65_male
+python src/pipeline/indicators/age65.py
+python src/pipeline/charts/headline.py --age 65
+```
+
+Preview `/headline-life-expectancy-age-65/` using the same server serving
+`output/charts/`. The original `python src/pipeline/charts/headline.py` command
+still builds the birth chart. No upload is performed by these commands. The
+age-65 chart has its own publication manifest at
+`output/charts/headline-life-expectancy-age-65/publish.json`; the existing explicit
+publication command and committed-provenance requirements apply to it too.

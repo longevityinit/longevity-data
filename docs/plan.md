@@ -1,79 +1,85 @@
 # Implementation plan
 
 The first milestone is a reproducible, validated headline life-expectancy graph
-embedded in WordPress. This checklist tracks completed setup and proposed
-implementation work. See [architecture.md](architecture.md) for the
-current system, proposed layers, and definition choices.
+embedded in WordPress. This checklist distinguishes implemented work from
+methodology and publication work still to complete. See [architecture.md](architecture.md)
+and [headline-graph.md](headline-graph.md) for the current design and definitions.
 
-## 1. Agree on the chart and audit sources
+## 1. Headline data and definitions
 
-- [ ] Confirm the written specification versus the mockup's different series.
-- [ ] Define country/territory eligibility, the annual population threshold,
-      frontier ties, global median, and income-group aggregation and membership.
-- [ ] Audit UN WPP and OWID artifacts for female/male life expectancy at birth
-      and 65, annual population, income groups, units, and historical coverage.
-- [ ] Choose and record source releases, citations, licences, and permitted uses.
-- [ ] Assemble a small verified sample spanning countries, years, sexes, and ages.
-- [ ] Record missing-data rules and keep historical estimates separate from projections.
+- [x] Import OWID female/male life expectancy, historical observations, total
+      population, and sex-specific population snapshots.
+- [x] Use stable location codes and explicit sex, age, and unit fields.
+- [x] Calculate Best practice using total population strictly above one million,
+      retain ties, start in 1850, and require two eligible locations per sex/year.
+- [x] Use OWID's World series rather than a country median; exclude income groups.
+- [x] Calculate sex-specific population-weighted p10, p25, p75, and p90 using
+      the inverse weighted CDF; keep projections out of the historical chart.
+- [x] Validate inputs and test thresholds, ties, missing values, aggregate exclusion,
+      and sex isolation with known examples.
+- [ ] Decide whether percentile calculations should use midpoint interpolation.
+- [ ] Review compatibility of historical mortality territories with population
+      estimates based on current borders before publication.
+- [ ] Complete final source-to-output sample checks and confirm the chart's
+      definitions and presentation with the project stakeholders.
 
-Done when the series definitions and source mapping are documented and sample
-values can be traced back to the source.
-
-## 2. Make the pipeline reliable locally
+## 2. Pipeline reliability
 
 - [x] Derive the repository root independently of `.env` discovery.
-- [x] Always build in ignored `output/`; remove the local/non-local distinction.
-- [x] Prepare snapshot provenance for review and require matching committed records before publication.
+- [x] Always build in ignored `output/`, without cloud credentials or uploads.
+- [x] Require matching committed snapshot provenance before publication.
 - [x] Separate publication into an explicit command with upload recovery.
-- [x] Document Python setup and record resolved dependency versions for Python 3.10/Linux.
-- [ ] **Optional:** restore a selected snapshot from storage, verify its checksum,
-      and rebuild without fetching newer upstream data. Not required for initial local development.
+- [x] Record resolved Python dependencies and document local setup.
 - [x] Make snapshot publication retries independent of importer completion.
-- [ ] Reject or explicitly align mismatched multipart CSV headers.
+- [x] Repair the headline snapshot pointer when reusing a dated download.
+- [x] Add regression tests for upload failure/retry and publication validation.
+- [ ] Reject or explicitly align mismatched multipart CSV headers and add regression coverage.
 - [ ] Track metadata-only upstream changes as well as CSV changes.
-- [x] Add focused regression tests for upload failure/retry and publication validation.
-- [ ] Add focused regression tests for CSV schema mismatch.
+- [ ] **Optional:** restore a selected stored snapshot, verify its checksum, and
+      rebuild without fetching newer upstream data.
 
-Done when a local build requires no cloud credentials and failed publication
-can be retried without deleting or re-downloading a valid snapshot.
+## 3. Headline chart and checks
 
-## 3. Build standardised data and indicators
+- [x] Render selected countries, UN regions, Best practice, World, and percentiles;
+      omit the unselected grey background lines.
+- [x] Add sex selection, searchable line selection, shared URL state, year-range
+      controls, responsive labels, and hover/pinned tooltips.
+- [x] Include methodology, coverage notes, source/licence credits, CSV/JSON downloads,
+      and an on-demand data table.
+- [x] Add loading, empty-data, and error states.
+- [x] Separate state, controls, rendering, and styles; add JS and Chromium behavior tests.
+- [x] Configure independent Python, JS/style, and fixture-only Chromium CI jobs.
+- [ ] Confirm the latest GitHub Actions run passes; local tests alone do not establish this.
+- [ ] Complete final mobile, keyboard, touch, and contrast review before publication.
 
-- [ ] Implement the selected source adapter and explicit sex/age/measure schema.
-- [ ] Add stable location IDs, population references, and versioned income classifications.
-- [ ] Validate dimension uniqueness, required units, join coverage, and missing values.
-- [ ] Calculate country, frontier, median, and income-group series.
-- [ ] Preserve frontier winners, input snapshot IDs, and calculation code version.
-- [ ] Test the one-million boundary, ties, missing years, aggregate exclusion,
-      sex/age isolation, and chosen aggregation rules with small known examples.
-- [ ] Cross-check representative output values against source data.
+## 4. Age-65 graph
 
-Done when the highlighted series are independently checked and reproducible
-from recorded inputs.
+Sources and calculation rules: [age-65 graph](age-65-graph.md).
 
-## 4. Build the headline graph
+- [x] Identify OWID female/male remaining-life-expectancy exports and inspect
+      their age-65 units, historical coverage, World, and regional observations.
+- [x] Use sex-specific 65+ percentile weights and retain total-population Best practice eligibility.
+- [x] Add pinned source snapshots and validate country/year/sex coverage against
+      population inputs, including early historical observations.
+- [x] Configure shared chart code for age, measure, title, axis/tooltip/table text,
+      sources, defaults, storage key, and output ID while preserving the birth chart.
+- [x] Generalize indicator calculations around age and explicit weight inputs;
+      avoid copying the entire headline pipeline.
+- [x] Test age isolation, source values, remaining-years units, weights, missing data,
+      shared controls, asset packaging, and both publication manifests.
 
-- [ ] Define a chart manifest with a stable ID, series metadata, sources, and defaults.
-- [ ] Render grey country lines and the four highlighted series with clear labels.
-- [ ] Add a female-default, keyboard-accessible sex toggle and informative tooltips.
-- [ ] Include methodology, coverage, source attribution, and a data download.
-- [ ] Add loading, empty-data, and error states.
-- [ ] Check mobile layout, contrast, keyboard access, and an accessible text/table alternative.
-- [ ] Validate the at-birth chart, then add the age-65 view with remaining-years units.
-
-Done when the chart matches the agreed definitions, remains readable on mobile,
-and its controls and values have been checked.
+- [ ] Review age-65 historical country coverage and population joins, including
+      compatibility between present-day population borders and mortality territories.
+- [ ] Confirm HMD/UN reuse terms and citations for the selected age-65 releases
+      before publication.
 
 ## 5. Publish and embed
 
-- [ ] Package immutable data, metadata, and rendering assets into a release.
+- [ ] Package and validate a release of immutable data, metadata, and rendering assets.
 - [ ] Validate uploaded artifacts before updating the public release pointer.
-- [ ] Check content types, caching, cross-origin access where needed, and embed behavior.
-- [ ] Embed in WordPress and verify sizing, interaction, and download links.
-- [ ] Exercise rollback and a rebuild from the recorded snapshot and code revision.
-- [ ] Add CI checks and document the update/review/publication workflow.
-
-Done when the live embed works and the release can be rebuilt or rolled back.
+- [ ] Check content types, caching, cross-origin access, and download links.
+- [ ] Embed in WordPress and verify sizing and interaction.
+- [ ] Exercise rollback and rebuilding from recorded snapshots and code revision.
 
 ## Later milestones
 
