@@ -72,6 +72,32 @@ class SnapshotTests(unittest.TestCase):
         with zipfile.ZipFile(self.root / 'output/adopt-snapshot.zip') as adoption:
             self.assertFalse(any(name.endswith('.csv') for name in adoption.namelist()))
 
+    def test_seven_dataset_snapshot_adopts_and_restores_without_changing_legacy_set(self):
+        snapshot_root = self.root / 'output/data/snapshots/owid'
+        dependencies = []
+        for dataset in set(pages_snapshot.ALL_SOURCES) - set(pages_snapshot.SOURCES):
+            directory = snapshot_root / dataset
+            shutil.copytree(snapshot_root / 'headline', directory)
+            version = directory / '2026-11-13-123-1'
+            for path in list(version.glob('headline.*')):
+                path.rename(version / path.name.replace('headline.', dataset + '.', 1))
+            dependencies.append(snapshot_manifest(version, self.root / 'output/data'))
+        chart = self.root / 'output/charts/headline-life-expectancy-age-65'
+        chart.mkdir()
+        (chart / 'index.html').write_text('age65 fixture', encoding='utf-8')
+        write_manifest({chart / 'index.html': 'charts/headline-life-expectancy-age-65/index.html'},
+                       chart / 'publish.json', kind='chart', dependencies=dependencies)
+        archive = pages_snapshot.prepare('graph-data-124-1', self.root, include_age65=True)
+        destination = Path(self.temporary.name) / 'seven-datasets'
+        destination.mkdir()
+        pages_review.apply_adoption(self.root / 'output/adopt-snapshot.zip', destination)
+        selection = json.loads((destination / 'config/pages-snapshot.json').read_text())
+        self.assertEqual(set(selection['snapshots']), set(pages_snapshot.ALL_SOURCES))
+        self.assertEqual(len(list(destination.rglob('*.meta.yaml'))), 7)
+        pages_snapshot.restore(archive, destination)
+        self.assertEqual(len(list((destination / 'output/data/snapshots').rglob('current.yaml'))), 7)
+        self.assertEqual(len(pages_snapshot.SOURCES), 5)
+
     def test_changed_archive_is_rejected_before_restore(self):
         self.archive.write_bytes(self.archive.read_bytes() + b'changed')
         with self.assertRaisesRegex(ValueError, 'archive checksum mismatch'):

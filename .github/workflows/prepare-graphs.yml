@@ -41,7 +41,13 @@ jobs:
           set -euo pipefail
           python src/pipeline/indicators/headline.py
           python src/pipeline/charts/headline.py
-          python src/pipeline/pages.py build --manifest output/charts/headline-life-expectancy/publish.json
+          manifests=(--manifest output/charts/headline-life-expectancy/publish.json)
+          if [[ -f output/data/snapshots/owid/headline_age65_female/current.yaml ]]; then
+            python src/pipeline/indicators/age65.py
+            python src/pipeline/charts/headline.py --age 65
+            manifests+=(--manifest output/charts/headline-life-expectancy-age-65/publish.json)
+          fi
+          python src/pipeline/pages.py build "${manifests[@]}"
       - uses: actions/upload-artifact@v4
         with:
           name: graphs-${{ github.run_attempt }}

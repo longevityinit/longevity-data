@@ -9,21 +9,22 @@ from pathlib import Path
 
 import yaml
 
-from download.owid.headline import SOURCES
+from download.owid.headline import SOURCES, ALL_SOURCES
 from pages import ROOT, revision, unpack
 from utils.provenance import provenance_files
 from utils.publication import checksum, load_snapshot_artifacts, write_json
 
 
-def prepare(release: str, root: Path = ROOT) -> Path:
-    """Bundle the five selected source snapshots and a Git adoption patch."""
+def prepare(release: str, root: Path = ROOT, *, include_age65: bool = False) -> Path:
+    """Bundle the explicitly selected source snapshots and a Git adoption patch."""
     if not release.startswith('graph-data-') or any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789-' for c in release):
         raise ValueError('Invalid data release tag')
     commit = revision(root)
     output = root / 'output'
     snapshot_root = output / 'data/snapshots/owid'
     files, snapshots = {}, {}
-    for dataset in SOURCES:
+    datasets = ALL_SOURCES if include_age65 else SOURCES
+    for dataset in datasets:
         pointer = snapshot_root / dataset / 'current.yaml'
         selected = yaml.safe_load(pointer.read_text(encoding='utf-8'))
         version = selected['version']
@@ -54,6 +55,8 @@ def prepare(release: str, root: Path = ROOT) -> Path:
     selection = {'version': 1, 'release': release, 'sha256': checksum(bundle_path),
                  'source_revision': commit, 'snapshots': snapshots}
     records = provenance_files(output / 'charts/headline-life-expectancy/publish.json')
+    if include_age65:
+        records.update(provenance_files(output / 'charts/headline-life-expectancy-age-65/publish.json'))
     with zipfile.ZipFile(output / 'adopt-snapshot.zip', 'w', zipfile.ZIP_DEFLATED) as adoption:
         adoption.writestr('config/pages-snapshot.json', json.dumps(selection, indent=2) + '\n')
         for relative, source in records.items():
@@ -76,7 +79,7 @@ def restore(archive: Path, root: Path = ROOT):
         staging = Path(temporary) / 'snapshot'
         unpack(archive, staging, selection['source_revision'], required_file='snapshot.json', require_deployable=False)
         snapshots = json.loads((staging / 'snapshot.json').read_text(encoding='utf-8'))
-        if snapshots != selection['snapshots'] or set(snapshots) != set(SOURCES):
+        if snapshots != selection['snapshots'] or set(snapshots) not in (set(SOURCES), set(ALL_SOURCES)):
             raise ValueError('Snapshot contents differ from the selected datasets')
         for dataset, record in snapshots.items():
             directory = staging / 'snapshots/owid' / dataset
@@ -134,6 +137,7 @@ if __name__ == '__main__':
     commands = parser.add_subparsers(dest='command', required=True)
     candidate = commands.add_parser('prepare')
     candidate.add_argument('--release', required=True)
+    candidate.add_argument('--include-age65', action='store_true')
     restore_parser = commands.add_parser('restore')
     restore_parser.add_argument('--archive', type=Path, required=True)
     selected = commands.add_parser('selected-release')
@@ -146,7 +150,7 @@ if __name__ == '__main__':
     select_run.add_argument('--revision', required=True)
     args = parser.parse_args()
     if args.command == 'prepare':
-        prepare(args.release)
+        prepare(args.release, include_age65=args.include_age65)
     elif args.command == 'restore':
         restore(args.archive)
     elif args.command == 'selected-release':

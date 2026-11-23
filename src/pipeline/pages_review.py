@@ -5,7 +5,7 @@ import math
 import zipfile
 from pathlib import Path
 
-from download.owid.headline import SOURCES
+from download.owid.headline import SOURCES, ALL_SOURCES
 from pages import ROOT
 
 
@@ -15,11 +15,11 @@ def apply_adoption(archive: Path, root: Path = ROOT):
         entries = bundle.infolist()
         names = [entry.filename for entry in entries]
         if (len(names) != len(set(names)) or 'config/pages-snapshot.json' not in names
-                or len(names) > 20 or sum(entry.file_size for entry in entries) > 2_000_000):
+                or len(names) > 24 or sum(entry.file_size for entry in entries) > 2_000_000):
             raise ValueError('Invalid adoption file list or size')
         selection = json.loads(bundle.read('config/pages-snapshot.json'))
         snapshots = selection.get('snapshots', {})
-        if selection.get('version') != 1 or set(snapshots) != set(SOURCES):
+        if selection.get('version') != 1 or set(snapshots) not in (set(SOURCES), set(ALL_SOURCES)):
             raise ValueError('Invalid adoption selection')
         required = {'config/pages-snapshot.json'}
         optional = set()

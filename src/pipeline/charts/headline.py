@@ -11,12 +11,38 @@ from charts.life_expectancy import ensure_vendor_assets, D3_FILENAME
 from utils.publication import validate_manifest, write_manifest
 
 
-def source_assets(root: Path) -> dict[str, Path]:
+def source_assets(root: Path, age: int = 0) -> dict[str, Path]:
     """Map generated presentation assets to the source used by builds and releases."""
     names = ('headline-config.js', 'headline.js', 'headline-state.js', 'headline-controls.js',
              'headline-renderer.js', 'headline.css')
-    return {**{name: root / 'src/charts' / name for name in names},
-            'index.html': root / 'src/pipeline/charts/templates/headline.html'}
+    assets = {**{name: root / 'src/charts' / name for name in names},
+              'index.html': root / 'src/pipeline/charts/templates/headline.html'}
+    if age == 65:
+        assets['age65-methodology.html'] = root / 'src/pipeline/charts/templates/age65-methodology.html'
+    return assets
+
+
+def render_assets(sources: dict[str, bytes], age: int = 0) -> dict[str, bytes]:
+    """Render presentation from verified source bytes for local and Pages builds."""
+    version = hashlib.sha256(b''.join(sources[name] for name in sorted(sources))).hexdigest()[:12]
+    assets = {name: content.decode('utf-8') for name, content in sources.items()}
+    template = assets.pop('index.html')
+    if age == 65:
+        start = re.search(r'<section\s+id="methodology"', template).start()
+        end = template.index('</section>', start) + len('</section>')
+        template = template[:start] + assets.pop('age65-methodology.html') + template[end:]
+        template = template.replace('life expectancy at birth', 'remaining life expectancy at age 65')
+        template = template.replace('Life expectancy at birth', 'Remaining life expectancy at age 65')
+        template = template.replace('<h1 id="chart-title">Remaining life expectancy at age 65</h1>', '<h1 id="chart-title">Life expectancy at age 65</h1>')
+        template = template.replace('id="chart-subtitle">Women', 'id="chart-subtitle">Remaining years of life · Women')
+    names = list(assets)
+    for name in names:
+        template = template.replace(f'="{name}"', f'="{name}?v={version}"')
+        for dependency in names:
+            assets[name] = assets[name].replace(f"'./{dependency}'", f"'./{dependency}?v={version}'")
+    assets['index.html'] = template
+    return {name: content.encode('utf-8') for name, content in assets.items()}
+
 
 
 def main(age=0):
@@ -34,29 +60,10 @@ def main(age=0):
     ensure_vendor_assets(charts / 'vendor')
     for name in ('headline.json', 'observations.csv'):
         shutil.copy2(source / name, directory / name)
-    assets = ['headline-config.js', 'headline.js', 'headline-state.js', 'headline-controls.js', 'headline-renderer.js', 'headline.css']
-    # Version the whole module graph so a rebuild cannot mix cached and current controls.
-    version = hashlib.sha256(b''.join((ROOT / 'src/charts' / name).read_bytes() for name in assets)).hexdigest()[:12]
-    for name in assets:
-        content = (ROOT / 'src/charts' / name).read_text(encoding='utf-8')
-        for asset in assets:
-            content = content.replace(f"'./{asset}'", f"'./{asset}?v={version}'")
-        (directory / name).write_text(content, encoding='utf-8')
-    template = (Path(__file__).parent / 'templates/headline.html').read_text(encoding='utf-8')
-    if age == 65:
-        start = re.search(r'<section\s+id="methodology"', template).start()
-        end = template.index('</section>', start) + len('</section>')
-        methodology = (Path(__file__).parent / 'templates/age65-methodology.html').read_text(encoding='utf-8')
-        template = template[:start] + methodology + template[end:]
-        template = template.replace('life expectancy at birth', 'remaining life expectancy at age 65')
-        template = template.replace('Life expectancy at birth', 'Remaining life expectancy at age 65')
-        template = template.replace('<h1 id="chart-title">Remaining life expectancy at age 65</h1>', '<h1 id="chart-title">Life expectancy at age 65</h1>')
-        template = template.replace('id="chart-subtitle">Women', 'id="chart-subtitle">Remaining years of life · Women')
-        template = template.replace('additional best-practice and population-weighted', 'additional best-practice and age-65+-population-weighted')
-    for name in assets:
-        template = template.replace(f'="{name}"', f'="{name}?v={version}"')
-    (directory / 'index.html').write_text(template, encoding='utf-8')
-    files = [directory / name for name in ['headline.json', 'observations.csv', 'index.html', *assets]]
+    assets = render_assets({name: path.read_bytes() for name, path in source_assets(ROOT, age).items()}, age)
+    for name, content in assets.items():
+        (directory / name).write_bytes(content)
+    files = [directory / name for name in ['headline.json', 'observations.csv', *assets]]
     files.insert(0, charts / 'vendor' / D3_FILENAME)
     files.extend(charts / 'vendor' / name for name in ('d3-7.9.0.txt', 'd3-7.9.0-dependencies.txt'))
     write_manifest({p: p.relative_to(output).as_posix() for p in files}, directory / 'publish.json',

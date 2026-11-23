@@ -3,6 +3,11 @@ name: Refresh graph data
 on:
   workflow_dispatch:
     inputs:
+      include_age65:
+        description: 'Include age-65 source data and graph in the candidate'
+        type: boolean
+        required: false
+        default: false
       create_pr:
         description: 'Open an adoption PR automatically (requires repository permission)'
         type: boolean
@@ -45,18 +50,39 @@ jobs:
             python src/pipeline/pages_snapshot.py restore --archive output/snapshot.tar.gz
             python src/pipeline/indicators/headline.py
             cp output/data/standardised/owid/headline/headline.json output/previous-headline.json
+            if [[ -f output/data/snapshots/owid/headline_age65_female/current.yaml ]]; then
+              python src/pipeline/indicators/age65.py
+              cp output/data/standardised/owid/headline_age65/headline.json output/previous-age65.json
+            fi
           fi
       - name: Download a new candidate snapshot and build review graphs
+        env:
+          INCLUDE_AGE65: ${{ inputs.include_age65 }}
         run: |
           set -euo pipefail
           version="$(date -u +%F)-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           python src/pipeline/download/owid/headline.py --version "$version"
           python src/pipeline/indicators/headline.py
           python src/pipeline/charts/headline.py
-          python src/pipeline/pages.py build --candidate --manifest output/charts/headline-life-expectancy/publish.json
-          python src/pipeline/pages_snapshot.py prepare --release "graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          manifests=(--manifest output/charts/headline-life-expectancy/publish.json)
+          snapshot_options=()
+          if [[ "$INCLUDE_AGE65" == true || -f output/data/snapshots/owid/headline_age65_female/current.yaml ]]; then
+            python src/pipeline/download/owid/headline.py --version "$version" headline_age65_female headline_age65_male
+            python src/pipeline/indicators/age65.py
+            python src/pipeline/charts/headline.py --age 65
+            manifests+=(--manifest output/charts/headline-life-expectancy-age-65/publish.json)
+            snapshot_options+=(--include-age65)
+          fi
+          python src/pipeline/pages.py build --candidate "${manifests[@]}"
+          python src/pipeline/pages_snapshot.py prepare --release "graph-data-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" "${snapshot_options[@]}"
           python src/pipeline/pages_review.py report --previous output/previous-headline.json \
             --candidate output/data/standardised/owid/headline/headline.json --output output/data-review.md
+          if [[ -f output/data/standardised/owid/headline_age65/headline.json ]]; then
+            python src/pipeline/pages_review.py report --previous output/previous-age65.json \
+              --candidate output/data/standardised/owid/headline_age65/headline.json --output output/age65-review.md
+            printf '\n## Age-65 graph\n' >> output/data-review.md
+            cat output/age65-review.md >> output/data-review.md
+          fi
       - name: Preserve the candidate source snapshot
         env:
           GH_TOKEN: ${{ github.token }}

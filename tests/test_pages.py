@@ -93,8 +93,32 @@ class PagesTests(unittest.TestCase):
         archive = pages.build([self.manifest], self.root)
         destination = self.root / 'restored'
         pages.unpack(archive, destination, self.commit)
-        for name, source in pages.source_assets(self.root).items():
-            self.assertEqual((destination / self.chart.name / name).read_bytes(), source.read_bytes())
+        expected = pages.render_assets({name: source.read_bytes()
+                                        for name, source in pages.source_assets(self.root).items()})
+        for name, content in expected.items():
+            self.assertEqual((destination / self.chart.name / name).read_bytes(), content)
+
+    def test_age65_page_uses_committed_measure_specific_presentation(self):
+        chart = self.chart.parent / 'headline-life-expectancy-age-65'
+        chart.mkdir()
+        assets = pages.render_assets({name: source.read_bytes()
+                                      for name, source in pages.source_assets(self.root, 65).items()}, 65)
+        for name in assets:
+            (chart / name).write_text('stale', encoding='utf-8')
+        (chart / 'headline.json').write_text(json.dumps({
+            'age': 65, 'code_revision': self.commit, 'code_dirty': False}), encoding='utf-8')
+        manifest = chart / 'publish.json'
+        write_manifest({path: path.relative_to(self.root / 'output').as_posix()
+                        for path in chart.iterdir()}, manifest, kind='chart', dependencies=[self.dependency])
+        archive = pages.build([self.manifest, manifest], self.root)
+        destination = self.root / 'both-charts'
+        pages.unpack(archive, destination, self.commit)
+        html = (destination / chart.name / 'index.html').read_text(encoding='utf-8')
+        self.assertIn('Life expectancy at age 65</h1>', html)
+        self.assertIn('65 or older', html)
+        self.assertNotIn('life expectancy at birth', html)
+        self.assertIn(f'href="{chart.name}/"', (destination / 'index.html').read_text())
+        self.assertEqual((destination / chart.name / 'index.html').read_bytes(), assets['index.html'])
 
     def test_changed_asset_is_rejected_before_replacing_site(self):
         pages.build([self.manifest], self.root)
